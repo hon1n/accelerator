@@ -1,1 +1,41 @@
 @import "tailwindcss";
+
+@font-face {
+  font-display: swap;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./assets/fonts/Inter-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  src: url("./assets/fonts/Inter-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  src: url("./assets/fonts/Inter-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  src: url("./assets/fonts/Inter-Bold.woff2") format("woff2");
+}
+
+@theme {
+  --color-primary: oklch(61.77% 0.18 258.57);
+  --color-dark: oklch(24.35% 0.000 0);
+  --font-inter: "Inter", sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
