@@ -3,7 +3,6 @@ import { ref } from "vue";
 
 import Header from "../components/layout/Header.vue";
 
-// Мок-данные для шапки
 const taskData = ref({
   title: "Квартальное планирование: Цели и OKR отдела продаж",
   date: "20 апр, 2026",
@@ -13,7 +12,6 @@ const taskData = ref({
   template_name: "Базовый протокол совещания",
 });
 
-// Мок-данные для стенограммы
 const transcript = ref([
   {
     speaker: "Спикер №1",
@@ -37,28 +35,23 @@ const transcript = ref([
   },
 ]);
 
-// Функция для раскраски спикеров с поддержкой тёмной темы
 const getSpeakerColor = (speakerName: string) => {
   if (speakerName.includes("1")) return "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300";
   if (speakerName.includes("2")) return "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300";
   if (speakerName.includes("3")) return "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300";
   if (speakerName.includes("4")) return "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300";
-  return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300"; // Дефолтный цвет
+  return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300";
 };
 </script>
 
 <template>
   <div class="dark:bg-dark flex h-screen w-full flex-col overflow-hidden bg-white text-gray-900 transition-colors duration-300 dark:text-gray-200">
-    <!-- Шапка (уже имеет shrink-0 внутри) -->
     <Header />
 
-    <!-- 2. flex-1 заставляет main занять всё оставшееся место, а min-h-0 не дает ему вылезти за пределы экрана -->
     <main class="mx-auto flex min-h-0 w-full max-w-450 flex-1 flex-col gap-6 px-4 py-6">
-      <!-- Верхний блок: Инфо + Плеер (добавили shrink-0, чтобы карточка не сплющивалась) -->
       <div
         class="dark:bg-dark flex shrink-0 flex-col justify-between gap-6 rounded-2xl border border-gray-200 bg-white p-6 transition-colors xl:flex-row xl:items-center dark:border-[#FFFFFF10]"
       >
-        <!-- Мета-информация -->
         <div>
           <h1 class="mb-2 text-2xl font-semibold text-black transition-colors dark:text-white">{{ taskData.title }}</h1>
           <div class="flex items-center gap-3 text-sm text-[#A8A9AC] dark:text-gray-400">
@@ -80,8 +73,7 @@ const getSpeakerColor = (speakerName: string) => {
           </div>
         </div>
 
-        <!-- Визуальный Аудиоплеер -->
-        <div class="flex min-w-[300px] items-center gap-4 xl:w-[400px]">
+        <div class="flex min-w-75 items-center gap-4 xl:w-100">
           <button
             class="text-primary dark:bg-primary/20 dark:hover:bg-primary/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 transition-colors hover:bg-blue-100"
           >
@@ -90,7 +82,6 @@ const getSpeakerColor = (speakerName: string) => {
 
           <div class="flex flex-1 items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400">
             <span>10:22</span>
-            <!-- Прогресс-бар -->
             <div class="relative h-1.5 flex-1 cursor-pointer rounded-full bg-gray-200 dark:bg-gray-700">
               <div class="bg-primary absolute top-0 left-0 h-full w-[25%] rounded-full"></div>
               <div class="bg-primary absolute top-1/2 left-[25%] h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white shadow-sm dark:border-gray-800"></div>
@@ -100,12 +91,8 @@ const getSpeakerColor = (speakerName: string) => {
         </div>
       </div>
 
-      <!-- 3. Две колонки (Конспект и Стенограмма) -->
-      <!-- Убрали жесткие h-[calc...] и min-h-[600px]. Теперь grid занимает ровно оставшееся место (flex-1 min-h-0) -->
       <div class="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- ЛЕВАЯ КОЛОНКА: Конспект -->
         <div class="dark:bg-dark flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-colors dark:border-[#FFFFFF10]">
-          <!-- Шапка колонки -->
           <div class="flex shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6 py-4 transition-colors dark:border-[#FFFFFF10] dark:bg-transparent">
             <div>
               <h2 class="text-lg font-semibold text-black transition-colors dark:text-white">Конспект</h2>
@@ -120,7 +107,6 @@ const getSpeakerColor = (speakerName: string) => {
               Скачать
             </button>
           </div>
-          <!-- Контент конспекта со скроллом (flex-1 overflow-y-auto заставляет скроллиться только эту часть) -->
           <div class="custom-scrollbar prose prose-sm max-w-none flex-1 overflow-y-auto p-6 leading-relaxed text-gray-800 dark:text-gray-300">
             <h3 class="mb-3 text-[17px] font-semibold text-black dark:text-white">I. Хронологический обзор обсуждения</h3>
             <ol class="mb-6 list-decimal space-y-4 pl-4 marker:font-bold marker:text-black dark:marker:text-white">
@@ -153,9 +139,7 @@ const getSpeakerColor = (speakerName: string) => {
           </div>
         </div>
 
-        <!-- ПРАВАЯ КОЛОНКА: Стенограмма -->
         <div class="dark:bg-dark flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-colors dark:border-[#FFFFFF10]">
-          <!-- Шапка колонки -->
           <div class="flex shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6 py-4 transition-colors dark:border-[#FFFFFF10] dark:bg-transparent">
             <h2 class="mt-1 text-lg font-semibold text-black transition-colors dark:text-white">Стенограмма</h2>
             <button
@@ -167,7 +151,6 @@ const getSpeakerColor = (speakerName: string) => {
               Скачать
             </button>
           </div>
-          <!-- Контент стенограммы со скроллом (добавлен flex-1) -->
           <div class="custom-scrollbar flex flex-1 flex-col gap-6 overflow-y-auto p-6">
             <div v-for="(phrase, index) in transcript" :key="index" class="flex flex-col gap-2">
               <div class="flex items-center justify-between">

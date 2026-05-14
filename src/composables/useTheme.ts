@@ -1,13 +1,9 @@
 import { ref, watch } from "vue";
 
-// Глобальное состояние вынесено за пределы функции,
-// чтобы оно было единым (singleton) для всех компонентов
 const isDark = ref(false);
 
 export function useTheme() {
-  // Инициализация при первой загрузке приложения
   const initTheme = () => {
-    // Проверяем localStorage или системные настройки
     if (localStorage.getItem("theme") === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       isDark.value = true;
     } else {
@@ -20,7 +16,6 @@ export function useTheme() {
     isDark.value = !isDark.value;
   };
 
-  // Функция применения стилей
   const applyTheme = (dark: boolean) => {
     if (dark) {
       document.documentElement.classList.add("dark");
@@ -31,7 +26,6 @@ export function useTheme() {
     }
   };
 
-  // Автоматически реагируем на изменение isDark
   watch(isDark, (newValue) => {
     applyTheme(newValue);
   });

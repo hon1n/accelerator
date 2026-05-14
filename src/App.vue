@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useTheme } from "./composables/useTheme";
 
-// Инициализируем тему сразу при монтировании приложения
 const { initTheme } = useTheme();
 initTheme();
 </script>
