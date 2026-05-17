@@ -5,6 +5,7 @@ defineProps<{
   onInput?: (e: Event) => void;
   type?: "text" | "password" | "email";
   placeholder?: string;
+  maxlength?: string;
 }>();
 
 defineEmits<{
@@ -22,6 +23,7 @@ defineEmits<{
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       :placeholder="placeholder"
+      :maxlength="maxlength"
       class="focus:ring-primary rounded-xl border border-gray-200 px-3.5 py-3.5 text-sm transition-all placeholder:text-[#A8A9AC] focus:border-transparent focus:ring-2 focus:outline-none dark:border-[#FFFFFF10] dark:bg-black/20 dark:hover:border-[#FFFFFF20]"
     />
   </div>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Plus, Pencil, RefreshCw, Trash2, X, Save } from "@lucide/vue";
+import { Plus, Pencil, RefreshCw, Trash2, X, Save, Copy, Check } from "@lucide/vue";
 
 import Header from "../components/layout/Header.vue";
+import Select from "../components/ui/Select.vue";
+import Input from "../components/ui/Input.vue";
 
 interface UserGroup {
   id: string;
   name: string;
+  fullName: string;
   colorClass: string;
 }
 
@@ -33,8 +36,10 @@ const users = ref<User[]>([
     position: "Разработчик",
     login: "hon1n@hon1n.ru",
     groups: [
-      { id: "g1", name: "P", colorClass: "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400" },
-      { id: "g2", name: "M", colorClass: "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" },
+      { id: "g1", name: "P", fullName: "Разработчики", colorClass: "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400" },
+      { id: "g2", name: "M", fullName: "Менеджеры", colorClass: "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400" },
+      { id: "g4", name: "Д", fullName: "Дизайнеры", colorClass: "bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400" },
+      { id: "g5", name: "А", fullName: "Аналитики", colorClass: "bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400" },
     ],
   },
   {
@@ -46,7 +51,7 @@ const users = ref<User[]>([
     role: "user",
     position: "Разработчик",
     login: "zavet@zavet.ru",
-    groups: [{ id: "g1", name: "P", colorClass: "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400" }],
+    groups: [{ id: "g1", name: "P", fullName: "Разработчики", colorClass: "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400" }],
   },
   {
     id: "3",
@@ -57,12 +62,14 @@ const users = ref<User[]>([
     role: "user",
     position: "Менеджер",
     login: "onda@andar.ru",
-    groups: [{ id: "g3", name: "M", colorClass: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400" }],
+    groups: [{ id: "g3", name: "M", fullName: "Маркетинг", colorClass: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400" }],
   },
 ]);
 
 const isSidePanelOpen = ref(false);
 const panelMode = ref<"create" | "edit">("create");
+const roles = ["Пользователь", "Администратор"];
+const isCopied = ref(false);
 
 const form = ref({
   id: "",
@@ -72,13 +79,45 @@ const form = ref({
   role: "Пользователь",
   position: "",
   login: "",
+  password: "",
 });
 
-const roleOptions = ["Администратор", "Пользователь"];
+const generatePassword = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let pass = "";
+  for (let i = 0; i < 20; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+};
+
+const copyPassword = async () => {
+  if (form.value.password) {
+    try {
+      await navigator.clipboard.writeText(form.value.password);
+      isCopied.value = true;
+      setTimeout(() => {
+        isCopied.value = false;
+      }, 2000);
+    } catch (err) {
+      console.error("Не удалось скопировать пароль", err);
+    }
+  }
+};
 
 const openCreatePanel = () => {
   panelMode.value = "create";
-  form.value = { id: "", firstName: "", lastName: "", patronymic: "", role: "Пользователь", position: "", login: "" };
+  form.value = {
+    id: "",
+    firstName: "",
+    lastName: "",
+    patronymic: "",
+    role: "Пользователь",
+    position: "",
+    login: "",
+    password: generatePassword(),
+  };
+  isCopied.value = false;
   isSidePanelOpen.value = true;
 };
 
@@ -92,6 +131,7 @@ const openEditPanel = (user: User) => {
     role: user.role === "admin" ? "Администратор" : "Пользователь",
     position: user.position,
     login: user.login,
+    password: "",
   };
   isSidePanelOpen.value = true;
 };
@@ -130,8 +170,8 @@ const executeModalAction = () => {
           <div class="mx-auto w-full max-w-450">
             <div class="mb-6 flex items-center justify-between">
               <div>
-                <p class="mb-1 text-sm text-[#A8A9AC] dark:text-gray-400">Управление пользователями</p>
-                <h1 class="text-2xl font-bold text-black transition-colors dark:text-white">Список пользователей</h1>
+                <p class="mb-1 text-sm text-[#A8A9AC] dark:text-gray-400">Управление</p>
+                <h1 class="text-2xl font-bold text-black transition-colors dark:text-white">Пользователи</h1>
               </div>
               <button
                 @click="openCreatePanel"
@@ -149,8 +189,8 @@ const executeModalAction = () => {
                 <div class="col-span-4 lg:col-span-3">Имя / Email</div>
                 <div class="col-span-2">Роль</div>
                 <div class="col-span-2">Должность</div>
-                <div class="col-span-1 lg:col-span-1">Группы</div>
-                <div class="col-span-3 lg:col-span-3">Действия</div>
+                <div class="col-span-1 lg:col-span-2">Группы</div>
+                <div class="col-span-3 text-right lg:col-span-2 lg:text-left">Действия</div>
               </div>
 
               <div class="flex flex-col">
@@ -160,8 +200,8 @@ const executeModalAction = () => {
                   class="grid grid-cols-12 items-center gap-4 border-b border-gray-100 px-6 py-4 transition-colors last:border-0 hover:bg-gray-50/50 dark:border-[#FFFFFF10] dark:hover:bg-white/5"
                 >
                   <div class="col-span-4 flex flex-col lg:col-span-3">
-                    <span class="text-[15px] font-semibold text-gray-900 dark:text-white"> {{ user.lastName }} {{ user.firstName }} {{ user.patronymic }} </span>
-                    <span class="mt-0.5 text-sm text-gray-400">{{ user.email }}</span>
+                    <span class="truncate text-[15px] font-semibold text-gray-900 dark:text-white"> {{ user.lastName }} {{ user.firstName }} {{ user.patronymic }} </span>
+                    <span class="mt-0.5 truncate text-sm text-gray-400">{{ user.email }}</span>
                   </div>
 
                   <div class="col-span-2 flex items-center">
@@ -175,48 +215,69 @@ const executeModalAction = () => {
                     </span>
                   </div>
 
-                  <div class="col-span-2 flex items-center text-sm font-medium text-gray-900 dark:text-gray-200">
+                  <div class="col-span-2 flex items-center truncate pr-2 text-sm font-medium text-gray-900 dark:text-gray-200">
                     {{ user.position }}
                   </div>
 
-                  <div class="col-span-1 flex items-center gap-1 lg:col-span-1">
-                    <div v-for="group in user.groups" :key="group.id" class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold" :class="group.colorClass">
-                      {{ group.name }}
-                    </div>
-                    <div
-                      v-if="user.role === 'admin'"
-                      class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500 dark:bg-white/10 dark:text-gray-400"
-                    >
-                      +2
+                  <div class="col-span-1 flex items-center lg:col-span-2">
+                    <div class="group relative flex w-max cursor-help items-center gap-1">
+                      <div
+                        v-for="group in user.groups.slice(0, 2)"
+                        :key="group.id"
+                        class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                        :class="group.colorClass"
+                      >
+                        {{ group.name }}
+                      </div>
+
+                      <div
+                        v-if="user.groups.length > 2"
+                        class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                      >
+                        +{{ user.groups.length - 2 }}
+                      </div>
+
+                      <div
+                        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:mb-3 group-hover:opacity-100"
+                      >
+                        <div class="dark:bg-dark relative rounded-lg bg-white px-3 py-2.5 text-xs text-white shadow-xl">
+                          <div class="flex flex-col gap-2 whitespace-nowrap">
+                            <div v-for="g in user.groups" :key="g.id" class="flex items-center gap-2.5">
+                              <div :class="g.colorClass" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+                                {{ g.name }}
+                              </div>
+                              <span class="font-medium text-black dark:text-white">{{ g.fullName }}</span>
+                            </div>
+                          </div>
+                          <div class="dark:border-dark absolute -bottom-1 left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-white"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div class="col-span-3 flex items-center gap-2 lg:col-span-3">
+                  <div class="col-span-3 flex items-center justify-end gap-2 lg:col-span-2 lg:justify-start">
                     <button
                       @click="openEditPanel(user)"
-                      class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10"
-                      :title="isSidePanelOpen ? 'Редактировать' : ''"
+                      class="cursor-pointer rounded-lg border border-gray-200 p-3 text-gray-900 transition-colors hover:bg-gray-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10"
+                      title="Редактировать"
                     >
-                      <Pencil class="h-3.5 w-3.5" />
-                      <span v-if="!isSidePanelOpen">Редактировать</span>
+                      <Pencil :size="16" />
                     </button>
 
                     <button
                       @click="confirmAction('reset', user)"
-                      class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10"
-                      :title="isSidePanelOpen ? 'Сбросить пароль' : ''"
+                      class="cursor-pointer rounded-lg border border-gray-200 p-3 text-gray-900 transition-colors hover:bg-gray-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10"
+                      title="Сбросить пароль"
                     >
-                      <RefreshCw class="h-3.5 w-3.5" />
-                      <span v-if="!isSidePanelOpen">Сбросить пароль</span>
+                      <RefreshCw :size="16" />
                     </button>
 
                     <button
                       @click="confirmAction('delete', user)"
-                      class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-[#FFFFFF10] dark:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-                      :title="isSidePanelOpen ? 'Удалить' : ''"
+                      class="cursor-pointer rounded-lg border border-gray-200 p-3 text-red-500 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-[#FFFFFF10] dark:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
+                      title="Удалить"
                     >
-                      <Trash2 class="h-3.5 w-3.5" />
-                      <span v-if="!isSidePanelOpen">Удалить</span>
+                      <Trash2 :size="16" />
                     </button>
                   </div>
                 </div>
@@ -233,71 +294,36 @@ const executeModalAction = () => {
           </h2>
           <button
             @click="closePanel"
-            class="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+            class="cursor-pointer rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
           >
             <X class="h-4 w-4" />
           </button>
         </div>
 
         <div class="custom-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto p-6">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Имя</label>
-            <input
-              v-model="form.firstName"
-              type="text"
-              placeholder="Введите имя"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
-            />
-          </div>
+          <Input v-model="form.firstName" label="Имя" type="text" placeholder="Введите имя" />
+          <Input v-model="form.lastName" label="Фамилия" type="text" placeholder="Введите фамилию" />
+          <Input v-model="form.patronymic" label="Отчество (при наличии)" type="text" placeholder="Введите отчество" />
+          <Select v-model="form.role" label="Роль" :options="roles" />
+          <Input v-model="form.position" label="Должность" type="text" placeholder="Введите должность" />
+          <Input v-model="form.login" label="Логин" type="text" placeholder="Введите логин" />
 
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Фамилия</label>
-            <input
-              v-model="form.lastName"
-              type="text"
-              placeholder="Введите фамилию"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
-            />
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Отчество <span class="text-gray-400">(при наличии)</span></label>
-            <input
-              v-model="form.patronymic"
-              type="text"
-              placeholder="Введите отчество"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
-            />
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Роль</label>
-            <select
-              v-model="form.role"
-              class="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
+          <div v-if="panelMode === 'create'" class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-gray-700 transition-colors dark:text-gray-300">Пароль</label>
+            <div
+              class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm transition-colors dark:border-[#FFFFFF10] dark:bg-black/20"
             >
-              <option v-for="role in roleOptions" :key="role">{{ role }}</option>
-            </select>
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Должность</label>
-            <input
-              v-model="form.position"
-              type="text"
-              placeholder="Введите должность"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
-            />
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs text-gray-600 dark:text-gray-400">Логин</label>
-            <input
-              v-model="form.login"
-              type="text"
-              placeholder="Введите логин"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white"
-            />
+              <span class="truncate font-mono text-gray-900 dark:text-white">{{ form.password }}</span>
+              <button
+                type="button"
+                @click="copyPassword"
+                class="ml-2 flex shrink-0 cursor-pointer items-center justify-center text-gray-400 transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+                title="Копировать пароль"
+              >
+                <Check v-if="isCopied" class="h-4 w-4 text-green-500" />
+                <Copy v-else class="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 

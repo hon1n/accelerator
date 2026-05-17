@@ -56,13 +56,16 @@ const headerMaxWidthClass = computed(() => {
           Пользователи
         </router-link>
 
-        <a
-          href="#"
-          class="flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200"
+        <router-link
+          to="/admin/groups"
+          :class="[
+            'flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+            route.path === '/admin/groups' ? 'text-primary bg-primary/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200',
+          ]"
         >
           <UsersRound :size="16" />
           Группы
-        </a>
+        </router-link>
 
         <button
           class="dark:bg-dark ml-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-[#FFFFFF10] dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-gray-200"
@@ -78,7 +81,7 @@ const headerMaxWidthClass = computed(() => {
         <button
           @click="toggleTheme"
           :class="isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'"
-          class="cursor-pointer relative flex h-8 w-14 items-center rounded-full border p-1 transition-colors duration-300 focus:outline-none"
+          class="relative flex h-8 w-14 cursor-pointer items-center rounded-full border p-1 transition-colors duration-300 focus:outline-none"
         >
           <div
             :class="isDark ? 'translate-x-6 bg-black' : 'translate-x-0 bg-white'"

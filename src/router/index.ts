@@ -53,6 +53,15 @@ const routes: Array<RouteRecordRaw> = [
     },
   },
   {
+    path: "/admin/groups",
+    name: "AdminGroups",
+    component: () => import("../views/AdminGroupsView.vue"),
+    meta: {
+      title: "Управление группами",
+      requiresAuth: true,
+    },
+  },
+  {
     path: "/records/:id",
     name: "RecordDetails",
     component: () => import("../views/ReadyTaskDetailsView.vue"),
