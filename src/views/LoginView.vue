@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { reactive } from "vue";
 import { useAuthStore } from "../stores/auth";
-import BaseInput from "../components/ui/BaseInput.vue";
-import BaseButton from "../components/ui/BaseButton.vue";
-import BaseCheckbox from "../components/ui/BaseCheckbox.vue";
+import Input from "../components/ui/Input.vue";
+import Button from "../components/ui/Button.vue";
+import Checkbox from "../components/ui/Checkbox.vue";
 
 import { CircleX } from "@lucide/vue";
 
@@ -38,14 +38,14 @@ const handleLogin = async () => {
         </div>
 
         <form @submit.prevent="handleLogin" class="space-y-5">
-          <BaseInput v-model="form.login" label="Логин" placeholder="Введите логин" type="text" required />
+          <Input v-model="form.login" label="Логин" placeholder="Введите логин" type="text" required />
 
-          <BaseInput v-model="form.password" label="Пароль" placeholder="Введите пароль" type="password" required />
+          <Input v-model="form.password" label="Пароль" placeholder="Введите пароль" type="password" required />
 
-          <BaseCheckbox v-model="form.rememberMe"> Запомнить меня </BaseCheckbox>
+          <Checkbox v-model="form.rememberMe"> Запомнить меня </Checkbox>
 
           <div class="pt-2">
-            <BaseButton :is-loading="authStore.isLoading" type="submit"> Авторизоваться </BaseButton>
+            <Button :is-loading="authStore.isLoading" type="submit"> Авторизоваться </Button>
           </div>
         </form>
       </div>

@@ -63,8 +63,16 @@ const statusText = (status: string): string => {
   }
 };
 
-const goToDetails = (id: string) => {
-  router.push(`/records/${id}`);
+const goToDetails = (id: string, status: string) => {
+  if (status === "in_progress") {
+    router.push(`/records/${id}/processing`);
+  } else if (status === "done") {
+    router.push(`/records/${id}`);
+  }
+};
+
+const goToCreate = () => {
+  router.push("/records/create");
 };
 </script>
 
@@ -79,8 +87,8 @@ const goToDetails = (id: string) => {
       </div>
 
       <div class="dark:bg-dark rounded-2xl border border-gray-200 bg-white p-6 transition-colors dark:border-[#FFFFFF10]">
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex items-center gap-3">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div class="flex flex-1 items-center gap-3">
             <button
               class="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
             >
@@ -97,27 +105,32 @@ const goToDetails = (id: string) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-
-            <div class="relative ml-4 w-72">
-              <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="Найти запись"
-                class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:bg-dark block w-full rounded-lg border border-gray-200 py-2 pr-3 pl-10 text-sm placeholder-gray-400 transition-colors focus:ring-1 focus:outline-none dark:border-[#FFFFFF10] dark:text-white dark:placeholder-gray-500"
-              />
-            </div>
           </div>
 
-          <button class="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Создать запись
-          </button>
+          <div class="relative w-114">
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Найти запись"
+              class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:bg-dark block w-full rounded-lg border border-gray-200 py-2 pr-3 pl-10 text-sm placeholder-gray-400 transition-colors focus:ring-1 focus:outline-none dark:border-[#FFFFFF10] dark:text-white dark:placeholder-gray-500"
+            />
+          </div>
+
+          <div class="flex flex-1 justify-end">
+            <button
+              @click="router.push('/records/create')"
+              class="bg-primary hover:bg-primary/90 flex cursor-pointer items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Создать запись
+            </button>
+          </div>
         </div>
 
         <div class="relative flex min-h-50 flex-col border-t border-gray-100 transition-colors dark:border-[#FFFFFF10]">
@@ -136,7 +149,7 @@ const goToDetails = (id: string) => {
             v-for="record in formattedTasks"
             :key="record.id"
             class="-mx-2 flex cursor-pointer items-center justify-between border-b border-gray-100 px-2 py-5 transition-colors hover:bg-gray-50/50 dark:border-[#FFFFFF05] dark:hover:bg-white/1"
-            @click="goToDetails(record.id)"
+            @click="goToDetails(record.id, record.uiStatus)"
           >
             <div class="flex items-center gap-5">
               <div
@@ -198,14 +211,14 @@ const goToDetails = (id: string) => {
             <button
               @click="prevPage"
               :disabled="tasksStore.pagination.page === 1 || tasksStore.isLoading"
-              class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+              class="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
             >
               Назад
             </button>
             <button
               @click="nextPage"
               :disabled="tasksStore.pagination.page === tasksStore.pagination.total_pages || tasksStore.isLoading"
-              class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+              class="cursor-pointer rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#FFFFFF10] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
             >
               Вперёд
             </button>

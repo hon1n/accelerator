@@ -8,10 +8,10 @@ const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
 
 const headerMaxWidthClass = computed(() => {
-  if (route.path.startsWith("/records")) {
-    return "max-w-450";
+  if (route.path.startsWith("/dashboard") || route.path.startsWith("/records/create")) {
+    return "max-w-300";
   }
-  return "max-w-300";
+  return "max-w-450";
 });
 </script>
 
@@ -34,20 +34,28 @@ const headerMaxWidthClass = computed(() => {
           Главная
         </router-link>
 
-        <a
-          href="#"
-          class="flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200"
+        <router-link
+          to="/templates"
+          :class="[
+            'flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+            route.path === '/templates' ? 'text-primary bg-primary/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200',
+          ]"
         >
           <LayoutTemplate :size="16" />
           Шаблоны
-        </a>
-        <a
-          href="#"
-          class="flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200"
+        </router-link>
+
+        <router-link
+          to="/admin/users"
+          :class="[
+            'flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+            route.path === '/admin/users' ? 'text-primary bg-primary/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200',
+          ]"
         >
           <SquareUserRound :size="16" />
           Пользователи
-        </a>
+        </router-link>
+
         <a
           href="#"
           class="flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/5 dark:hover:text-gray-200"
@@ -70,7 +78,7 @@ const headerMaxWidthClass = computed(() => {
         <button
           @click="toggleTheme"
           :class="isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'"
-          class="relative flex h-8 w-14 items-center rounded-full border p-1 transition-colors duration-300 focus:outline-none"
+          class="cursor-pointer relative flex h-8 w-14 items-center rounded-full border p-1 transition-colors duration-300 focus:outline-none"
         >
           <div
             :class="isDark ? 'translate-x-6 bg-black' : 'translate-x-0 bg-white'"

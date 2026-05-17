@@ -35,11 +35,47 @@ const routes: Array<RouteRecordRaw> = [
     },
   },
   {
+    path: "/templates",
+    name: "Templates",
+    component: () => import("../views/TemplatesView.vue"),
+    meta: {
+      title: "Конструктор шаблонов",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/admin/users",
+    name: "AdminUsers",
+    component: () => import("../views/AdminUsersView.vue"),
+    meta: {
+      title: "Управление пользователями",
+      requiresAuth: true,
+    },
+  },
+  {
     path: "/records/:id",
     name: "RecordDetails",
-    component: () => import("../views/RecordDetailsView.vue"),
+    component: () => import("../views/ReadyTaskDetailsView.vue"),
     meta: {
       title: "Детали конспекта",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/records/:id/processing",
+    name: "RecordProcessingDetails",
+    component: () => import("../views/ProcessingTaskDetailsView.vue"),
+    meta: {
+      title: "Детали конспекта",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/records/create",
+    name: "RecordCreate",
+    component: () => import("../views/CreateTaskView.vue"),
+    meta: {
+      title: "Создание записи",
       requiresAuth: true,
     },
   },

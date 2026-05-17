@@ -173,7 +173,6 @@ const getSpeakerColor = (speakerName: string) => {
 </template>
 
 <style scoped>
-/* Стили скроллбара работают для светлой темы, а глобальный класс .dark переопределит их для тёмной */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
