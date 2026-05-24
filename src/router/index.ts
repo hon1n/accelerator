@@ -10,10 +10,12 @@ const routes: Array<RouteRecordRaw> = [
       const authStore = useAuthStore();
 
       if (authStore.accessToken) {
+        if (authStore.requiresPasswordChange) {
+          return { name: "ChangePassword" };
+        }
         return { name: "Dashboard" };
-      } else {
-        return { name: "Login" };
       }
+      return { name: "Login" };
     },
   },
   {
@@ -23,6 +25,25 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: "Авторизация",
       guestOnly: true,
+    },
+  },
+  {
+    path: "/setup",
+    name: "CreatorSetup",
+    component: () => import("../views/CreatorSetupView.vue"),
+    meta: {
+      title: "Первичная настройка",
+      guestOnly: true,
+    },
+  },
+  {
+    path: "/change-password",
+    name: "ChangePassword",
+    component: () => import("../views/ChangePasswordView.vue"),
+    meta: {
+      title: "Смена пароля",
+      requiresAuth: true,
+      requiresPasswordChange: true,
     },
   },
   {
@@ -37,10 +58,16 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: "/templates",
     name: "Templates",
-    component: () => import("../views/TemplatesView.vue"),
+    redirect: { name: "AdminPatterns" },
+  },
+  {
+    path: "/admin/patterns",
+    name: "AdminPatterns",
+    component: () => import("../views/AdminPatternsView.vue"),
     meta: {
-      title: "Конструктор шаблонов",
+      title: "Управление шаблонами",
       requiresAuth: true,
+      requiresAdmin: true,
     },
   },
   {
@@ -50,6 +77,7 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: "Управление пользователями",
       requiresAuth: true,
+      requiresAdmin: true,
     },
   },
   {
@@ -59,6 +87,7 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: "Управление группами",
       requiresAuth: true,
+      requiresAdmin: true,
     },
   },
   {
@@ -101,7 +130,7 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior(to, from, savedPosition) {
+  scrollBehavior(_to, _from, savedPosition) {
     if (savedPosition) {
       return savedPosition;
     } else {
@@ -110,23 +139,50 @@ const router = createRouter({
   },
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   document.title = (to.meta.title as string) || "Платформа протоколирования";
 
   const authStore = useAuthStore();
 
   const isAuthenticated = !!authStore.accessToken;
-
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const guestOnly = to.matched.some((record) => record.meta.guestOnly);
+  const isChangePasswordRoute = to.name === "ChangePassword";
 
   if (requiresAuth && !isAuthenticated) {
     next({ name: "Login", query: { redirect: to.fullPath } });
-  } else if (guestOnly && isAuthenticated) {
-    next({ name: "Dashboard" });
-  } else {
-    next();
+    return;
   }
+
+  if (isAuthenticated && authStore.requiresPasswordChange) {
+    if (!isChangePasswordRoute) {
+      next({ name: "ChangePassword" });
+      return;
+    }
+    next();
+    return;
+  }
+
+  if (isAuthenticated && isChangePasswordRoute && !authStore.requiresPasswordChange) {
+    next({ name: "Dashboard" });
+    return;
+  }
+
+  if (guestOnly && isAuthenticated) {
+    next({ name: "Dashboard" });
+    return;
+  }
+
+  const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
+  if (requiresAdmin) {
+    const userRole = authStore.role;
+    if (userRole !== "admin" && userRole !== "creator") {
+      next({ name: "Dashboard" });
+      return;
+    }
+  }
+
+  next();
 });
 
 export default router;

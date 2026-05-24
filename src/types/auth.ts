@@ -1,10 +1,3 @@
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  TokenType: string;
-}
-
-export interface ErrorResponse {
-  error: string;
-}
+/** @deprecated Импортируйте из `../api` */
+export type { AuthTokensResponse as AuthResponse, LoginRequest } from "../api/auth.types";
+export type { ApiErrorResponse as ErrorResponse } from "../api/api.types";

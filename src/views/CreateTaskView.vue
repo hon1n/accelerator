@@ -1,29 +1,95 @@
-<script setup lang="ts">
-import { ref, nextTick } from "vue";
-import { Plus } from "@lucide/vue";
-
+﻿<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { Upload, ArrowLeft } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
+import Card from "../components/ui/Card.vue";
 import Select from "../components/ui/Select.vue";
 import Input from "../components/ui/Input.vue";
+import Textarea from "../components/ui/Textarea.vue";
+import Button from "../components/ui/Button.vue";
+import { extractApiErrorMessage } from "../api";
+import { formatAdditionalPrompt } from "../api/patterns.utils";
+import { useGroupsStore } from "../stores/groups";
+import { usePatternsStore } from "../stores/patterns";
+import { useTasksStore } from "../stores/tasks";
+import { fieldControlClass, fieldControlSizeClass, fieldLabelClass } from "../components/ui/fieldStyles";
+
+const router = useRouter();
+const groupsStore = useGroupsStore();
+const patternsStore = usePatternsStore();
+const tasksStore = useTasksStore();
 
 const form = ref({
-  group: "Менеджеры",
-  date: "18.10.2026",
-  title: "",
+  groupId: "",
+  meetingDate: "",
+  taskName: "",
   description: "",
-  template: "Шаблон для интервью",
-  transcriptionModel: "Whisper V4",
-  summarizationModel: "Qwen3",
+  patternId: "",
+  asrModel: "Whisper V4",
+  llmModel: "Qwen3",
+  tokens: "4000",
   file: null as File | null,
 });
 
-const groups = ["Менеджеры", "Разработчики", "Дизайнеры", "Маркетинг"];
-const templates = ["Шаблон для интервью", "Еженедельный отчет"];
-const transcriptionModels = ["Whisper V4", "Whisper V3", "Google Speech-to-Text"];
-const summarizationModels = ["Qwen3", "GPT-4o", "Claude 3.5 Sonnet"];
-
+const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const fileName = ref("Не выбран ни один файл");
+
+const groupOptions = computed(() => {
+  return groupsStore.groups.map((g) => ({
+    value: g.group_id,
+    label: g.name,
+  }));
+});
+
+const patternOptions = computed(() => {
+  if (!form.value.groupId) return [];
+  
+  const patterns = [
+    ...patternsStore.groupGlobalPatterns,
+    ...patternsStore.groupLocalPatterns,
+  ];
+  
+  return patterns.map((p) => ({
+    value: p.pattern_id,
+    label: p.name,
+  }));
+});
+
+const asrModelOptions = [
+  { value: "Whisper V4", label: "Whisper V4" },
+  { value: "Whisper V3", label: "Whisper V3" },
+  { value: "Google Speech-to-Text", label: "Google Speech-to-Text" },
+];
+
+const llmModelOptions = [
+  { value: "Qwen3", label: "Qwen3" },
+  { value: "GPT-4o", label: "GPT-4o" },
+  { value: "Claude 3.5 Sonnet", label: "Claude 3.5 Sonnet" },
+];
+
+const tokensOptions = [
+  { value: "2000", label: "2000" },
+  { value: "4000", label: "4000" },
+  { value: "8000", label: "8000" },
+  { value: "16000", label: "16000" },
+];
+
+const fileName = computed(() => {
+  return form.value.file ? form.value.file.name : "Не выбран ни один файл";
+});
+
+const isFormValid = computed(() => {
+  return (
+    form.value.groupId &&
+    form.value.taskName.trim() &&
+    form.value.patternId &&
+    form.value.asrModel &&
+    form.value.llmModel &&
+    form.value.tokens &&
+    form.value.file
+  );
+});
 
 const triggerFileInput = () => {
   fileInputRef.value?.click();
@@ -33,128 +99,212 @@ const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     form.value.file = target.files[0];
-    fileName.value = target.files[0].name;
   } else {
     form.value.file = null;
-    fileName.value = "Не выбран ни один файл";
   }
 };
 
-const onDateInput = (e: Event) => {
-  const el = e.target as HTMLInputElement;
-  const val = el.value;
-
-  const cursor = el.selectionStart || 0;
-
-
-  const clean = val.replace(/\D/g, "").slice(0, 8);
-
-
-  let formatted = "";
-  if (clean.length > 4) {
-    formatted = `${clean.slice(0, 2)}.${clean.slice(2, 4)}.${clean.slice(4)}`;
-  } else if (clean.length > 2) {
-    formatted = `${clean.slice(0, 2)}.${clean.slice(2)}`;
-  } else {
-    formatted = clean;
+const handleGroupChange = async (groupId: string) => {
+  form.value.groupId = groupId;
+  form.value.patternId = "";
+  
+  if (groupId) {
+    await patternsStore.fetchGroupPatterns(groupId);
   }
-
-  const cleanBeforeCursor = val.slice(0, cursor).replace(/\D/g, "");
-  let newCursor = cleanBeforeCursor.length;
-
-  if (newCursor > 2) newCursor++;
-  if (newCursor > 4) newCursor++;
-
-  form.value.date = formatted;
-  el.value = formatted;
-
-  nextTick(() => {
-    el.setSelectionRange(newCursor, newCursor);
-  });
 };
+
+const handleSubmit = async () => {
+  if (!isFormValid.value) return;
+
+  error.value = null;
+
+  try {
+    const selectedPattern = [
+      ...patternsStore.groupGlobalPatterns,
+      ...patternsStore.groupLocalPatterns,
+    ].find((p) => p.pattern_id === form.value.patternId);
+
+    if (!selectedPattern) {
+      throw new Error("Шаблон не найден");
+    }
+
+    const meetingDate = form.value.meetingDate
+      ? new Date(`${form.value.meetingDate}T12:00:00`).toISOString()
+      : new Date().toISOString();
+
+    const additionalRaw = formatAdditionalPrompt(selectedPattern.additional_prompt);
+    const additional_prompt = additionalRaw.trim() ? additionalRaw : "{}";
+
+    const response = await tasksStore.uploadTask(
+      form.value.file!,
+      {
+        task_name: form.value.taskName.trim(),
+        description: form.value.description.trim(),
+        meeting_date: meetingDate,
+        summary_prompt: selectedPattern.summary_prompt,
+        additional_prompt,
+        asr_model: form.value.asrModel,
+        llm_model: form.value.llmModel,
+        tokens: form.value.tokens,
+      },
+      form.value.groupId,
+    );
+
+    await router.push({
+      name: "RecordProcessingDetails",
+      params: { id: response.task_id },
+    });
+  } catch (err: unknown) {
+    error.value = extractApiErrorMessage(err, "Не удалось создать запись");
+  }
+};
+
+onMounted(async () => {
+  await groupsStore.fetchGroups();
+  
+  if (groupsStore.groups.length > 0) {
+    const firstGroupId = groupsStore.groups[0].group_id;
+    form.value.groupId = firstGroupId;
+    await patternsStore.fetchGroupPatterns(firstGroupId);
+  }
+});
 </script>
 
 <template>
-  <div class="dark:bg-dark flex h-screen w-full flex-col overflow-hidden bg-white text-gray-900 transition-colors duration-300 dark:text-gray-200">
+  <div class="min-h-screen bg-gray-50 dark:bg-dark">
     <Header />
 
-    <main class="mx-auto flex min-h-0 w-full max-w-300 flex-1 flex-col gap-6 px-4 py-6">
-      <div class="flex shrink-0 items-center justify-between">
-        <div>
-          <p class="mb-1 text-sm text-[#A8A9AC] dark:text-gray-400">Создание записи</p>
-          <h1 class="text-2xl font-bold text-black transition-colors dark:text-white">Создание записи</h1>
-        </div>
+    <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <!-- Back Button -->
+      <button
+        type="button"
+        class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+        @click="router.push({ name: 'Dashboard' })"
+      >
+        <ArrowLeft :size="16" />
+        Главная
+      </button>
+
+      <!-- Page Header -->
+      <div class="mb-6">
+        <p class="text-sm text-gray-500 dark:text-gray-400">Создание записи</p>
+        <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+          Создание записи
+        </h1>
       </div>
 
-      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-colors dark:border-[#FFFFFF10] dark:bg-white/5">
-        <div class="shrink-0 border-b border-gray-100 p-6 transition-colors dark:border-[#FFFFFF10]">
-          <h2 class="text-sm font-semibold text-gray-900 transition-colors dark:text-white">Форма</h2>
-        </div>
-
-        <div class="scrollbar-hide flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Select v-model="form.group" label="Группа" :options="groups" />
-            <Input v-model="form.date" label="Дата встречи" @input="onDateInput" type="text" placeholder="ДД.ММ.ГГГГ" />
+      <!-- Form -->
+      <Card padding="lg">
+        <form @submit.prevent="handleSubmit" class="space-y-6">
+          <!-- Error Message -->
+          <div
+            v-if="error"
+            class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+          >
+            {{ error }}
           </div>
 
-          <Input v-model="form.title" label="Название записи" type="text" placeholder="Например: 'Совещание №1'" />
+          <!-- Group and Date -->
+          <div class="grid gap-6 sm:grid-cols-2">
+            <Select
+              label="Группа"
+              :model-value="form.groupId"
+              :options="groupOptions"
+              @update:model-value="handleGroupChange"
+            />
 
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-gray-700 transition-colors dark:text-gray-300">Описание</label>
-            <textarea
-              v-model="form.description"
-              rows="4"
-              placeholder='Например: "продуктовое совещание"'
-              class="w-full resize-none rounded-lg border border-gray-200 bg-white p-4 text-sm transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-[#FFFFFF10] dark:bg-black/20 dark:text-white dark:placeholder-gray-500"
-            ></textarea>
+            <Input v-model="form.meetingDate" label="Дата встречи" type="date" />
           </div>
 
-          <div class="w-full shrink-0">
-            <Select v-model="form.template" label="Шаблон конспекта" :options="templates" />
+          <Input
+            v-model="form.taskName"
+            label="Название записи"
+            placeholder='Например: "Совещание №1"'
+          />
+
+          <Textarea
+            v-model="form.description"
+            label="Описание"
+            :rows="4"
+            placeholder='Например: "продуктовое совещание"'
+          />
+
+          <Select
+            v-model="form.patternId"
+            label="Шаблон конспекта"
+            :options="patternOptions"
+            :disabled="!form.groupId || patternOptions.length === 0"
+          />
+
+          <!-- Models -->
+          <div class="grid gap-6 sm:grid-cols-2">
+            <Select
+              v-model="form.asrModel"
+              label="Модель для транскрибации"
+              :options="asrModelOptions"
+            />
+
+            <Select
+              v-model="form.llmModel"
+              label="Модель для конспектирования"
+              :options="llmModelOptions"
+            />
           </div>
 
-          <div class="grid shrink-0 grid-cols-1 gap-6 md:grid-cols-2">
-            <Select v-model="form.transcriptionModel" label="Модель для транскрибации" :options="transcriptionModels" />
-            <Select v-model="form.summarizationModel" label="Модель для конспектирования" :options="summarizationModels" />
-          </div>
+          <Select v-model="form.tokens" label="Количество токенов" :options="tokensOptions" />
 
-          <div class="flex shrink-0 flex-col gap-2">
-            <label class="text-sm font-medium text-gray-700 transition-colors dark:text-gray-300">Аудиофайл</label>
-            <input type="file" class="hidden" ref="fileInputRef" @change="handleFileChange" accept="audio/*,video/*" />
+          <div class="flex w-full flex-col gap-1.5">
+            <label :class="fieldLabelClass">Аудиофайл</label>
+            <input
+              ref="fileInputRef"
+              type="file"
+              class="hidden"
+              accept="audio/*,video/*"
+              @change="handleFileChange"
+            />
             <div
-              class="flex w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-white transition-colors focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-[#FFFFFF10] dark:bg-black/20"
+              :class="[
+                fieldControlClass(),
+                fieldControlSizeClass,
+                'flex items-center overflow-hidden p-0',
+              ]"
             >
               <button
                 type="button"
+                class="h-full shrink-0 border-r border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-dark-border dark:bg-dark-elevated dark:text-gray-200 dark:hover:bg-dark-card"
                 @click="triggerFileInput"
-                class="border-r border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-[#FFFFFF10] dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
               >
                 Выбор файла
               </button>
-              <span class="truncate px-4 text-sm" :class="form.file ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'">
+              <span
+                class="flex-1 truncate px-4 text-sm"
+                :class="
+                  form.file
+                    ? 'text-gray-900 dark:text-white'
+                    : 'text-gray-500 dark:text-gray-400'
+                "
+              >
                 {{ fileName }}
               </span>
             </div>
           </div>
-        </div>
 
-        <div class="shrink-0 border-t border-gray-100 bg-white p-6 transition-colors dark:border-[#FFFFFF10] dark:bg-transparent">
-          <button type="button" class="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700">
-            <Plus class="h-4 w-4" />
-            Создать запись
-          </button>
-        </div>
-      </div>
+          <!-- Submit Button -->
+          <div class="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              @click="router.push({ name: 'Dashboard' })"
+            >
+              Отмена
+            </Button>
+            <Button type="submit" :disabled="!isFormValid" :is-loading="tasksStore.isUploading">
+              <Upload :size="18" />
+              Создать запись
+            </Button>
+          </div>
+        </form>
+      </Card>
     </main>
   </div>
 </template>
-
-<style scoped>
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-</style>

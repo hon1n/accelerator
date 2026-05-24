@@ -1,22 +1,83 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, useAttrs } from "vue";
 import { ChevronDown, Check } from "@lucide/vue";
+import {
+  fieldControlClass,
+  fieldControlSizeClass,
+  fieldLabelClass,
+  fieldSelectMenuClass,
+  fieldSelectOptionClass,
+  fieldWrapperClass,
+} from "./fieldStyles";
 
-const props = defineProps<{
-  modelValue: string;
-  label?: string;
-  options: string[];
-}>();
+defineOptions({ inheritAttrs: false });
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    label?: string;
+    options: (string | Option)[];
+    disabled?: boolean;
+    error?: boolean;
+    placeholder?: string;
+    hideLabel?: boolean;
+  }>(),
+  {
+    disabled: false,
+    error: false,
+    placeholder: "Выберите...",
+    hideLabel: false,
+  },
+);
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: string): void;
+  "update:modelValue": [value: string];
 }>();
+
+const attrs = useAttrs();
 
 const isOpen = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
 
-const selectOption = (option: string) => {
-  emit("update:modelValue", option);
+const wrapperClass = computed(() => {
+  const extra = typeof attrs.class === "string" ? attrs.class : "";
+  const base = props.label && !props.hideLabel ? fieldWrapperClass : "flex w-full flex-col";
+  return [base, extra].filter(Boolean).join(" ");
+});
+
+const normalizedOptions = computed(() =>
+  props.options.map((opt) =>
+    typeof opt === "string" ? { value: opt, label: opt } : opt,
+  ),
+);
+
+const selectedLabel = computed(() => {
+  const option = normalizedOptions.value.find((opt) => opt.value === props.modelValue);
+  return option?.label ?? props.placeholder;
+});
+
+const isPlaceholder = computed(
+  () => !normalizedOptions.value.some((opt) => opt.value === props.modelValue),
+);
+
+const triggerClass = computed(() =>
+  [
+    fieldControlClass({ error: props.error, disabled: props.disabled }),
+    fieldControlSizeClass,
+    "flex items-center justify-between gap-2 text-left",
+    isPlaceholder.value ? "text-gray-400 dark:text-gray-500" : "",
+  ]
+    .filter(Boolean)
+    .join(" "),
+);
+
+const selectOption = (value: string) => {
+  emit("update:modelValue", value);
   isOpen.value = false;
 };
 
@@ -36,53 +97,56 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2" ref="dropdownRef">
-    <label v-if="label" class="text-sm font-medium text-gray-700 transition-colors dark:text-gray-300">
+  <div ref="dropdownRef" :class="wrapperClass">
+    <label v-if="label && !hideLabel" :class="fieldLabelClass">
       {{ label }}
     </label>
 
-    <div class="relative">
+    <div class="relative w-full">
       <button
         type="button"
+        :disabled="disabled"
+        :class="triggerClass"
         @click="isOpen = !isOpen"
-        :class="[
-          'flex w-full items-center justify-between rounded-xl border bg-white px-3.5 py-3.5 text-sm transition-colors focus:ring-1 focus:outline-none',
-          isOpen ? 'border-blue-500 ring-blue-500 dark:border-blue-500' : 'border-gray-200 hover:border-gray-300 dark:border-[#FFFFFF10] dark:hover:border-[#FFFFFF20]',
-          'dark:bg-black/20 dark:text-white',
-        ]"
       >
-        <span class="truncate">{{ modelValue || "Выберите..." }}</span>
-        <ChevronDown class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-200 dark:text-gray-400" :class="{ 'rotate-180': isOpen }" />
+        <span class="min-w-0 flex-1 truncate">{{ selectedLabel }}</span>
+        <ChevronDown
+          :size="16"
+          class="shrink-0 text-gray-400 transition-transform dark:text-gray-500"
+          :class="{ 'rotate-180': isOpen }"
+        />
       </button>
 
-      <transition
+      <Transition
         enter-active-class="transition duration-100 ease-out"
-        enter-from-class="transform scale-95 opacity-0"
-        enter-to-class="transform scale-100 opacity-100"
+        enter-from-class="scale-95 opacity-0"
+        enter-to-class="scale-100 opacity-100"
         leave-active-class="transition duration-75 ease-in"
-        leave-from-class="transform scale-100 opacity-100"
-        leave-to-class="transform scale-95 opacity-0"
+        leave-from-class="scale-100 opacity-100"
+        leave-to-class="scale-95 opacity-0"
       >
-        <div v-if="isOpen" class="absolute z-50 mt-1.5 w-full rounded-lg border border-gray-100 bg-white p-1.5 shadow-sm dark:border-[#FFFFFF10] dark:bg-gray-900">
-          <div class="custom-scrollbar max-h-60 overflow-y-auto">
-            <button
-              v-for="option in options"
-              :key="option"
-              type="button"
-              @click="selectOption(option)"
-              :class="[
-                'flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors cursor-pointer',
-                option === modelValue
-                  ? 'bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
-                  : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5',
-              ]"
-            >
-              <span class="truncate">{{ option }}</span>
-              <Check v-if="option === modelValue" class="h-4 w-4 shrink-0" />
-            </button>
-          </div>
+        <div v-if="isOpen && !disabled" :class="fieldSelectMenuClass">
+          <button
+            v-for="option in normalizedOptions"
+            :key="option.value"
+            type="button"
+            :class="[
+              fieldSelectOptionClass,
+              option.value === modelValue
+                ? 'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white'
+                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated',
+            ]"
+            @click="selectOption(option.value)"
+          >
+            <span class="truncate">{{ option.label }}</span>
+            <Check
+              v-if="option.value === modelValue"
+              :size="16"
+              class="ml-2 shrink-0"
+            />
+          </button>
         </div>
-      </transition>
+      </Transition>
     </div>
   </div>
 </template>

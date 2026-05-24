@@ -1,25 +1,26 @@
-import { api } from "./index";
-import type { AuthResponse } from "../types/auth";
+import { api } from "./api";
+import type {
+  AuthTokensResponse,
+  ChangeTempPasswordRequest,
+  LoginRequest,
+  RefreshTokenRequest,
+} from "./auth.types";
 
-export const AuthService = {
-  /**
-   * Вход по логину и паролю
-   */
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/api/v1/auth/login", {
-      email,
-      password,
-    });
-    return response.data;
+const AUTH_PREFIX = "/api/v1/auth";
+const USERS_ME_PREFIX = "/api/v1/users/me";
+
+export const authService = {
+  login(payload: LoginRequest): Promise<AuthTokensResponse> {
+    return api.post<AuthTokensResponse>(`${AUTH_PREFIX}/login`, payload).then((r) => r.data);
   },
 
-  /**
-   * Ручное обновление токена
-   */
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/api/v1/auth/refresh", {
-      refresh_token: refreshToken,
-    });
-    return response.data;
+  refresh(payload: RefreshTokenRequest): Promise<AuthTokensResponse> {
+    return api.post<AuthTokensResponse>(`${AUTH_PREFIX}/refresh`, payload).then((r) => r.data);
+  },
+
+  changeTempPassword(payload: ChangeTempPasswordRequest): Promise<void> {
+    return api
+      .post<void>(`${USERS_ME_PREFIX}/change-temp-password`, payload)
+      .then(() => undefined);
   },
 };

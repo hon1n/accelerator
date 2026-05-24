@@ -17,6 +17,12 @@ importers:
       axios:
         specifier: ^1.16.0
         version: 1.16.0
+      overlayscrollbars:
+        specifier: ^2.16.0
+        version: 2.16.0
+      overlayscrollbars-vue:
+        specifier: ^0.5.10
+        version: 0.5.10(overlayscrollbars@2.16.0)(vue@3.5.34(typescript@6.0.3))
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3))
@@ -753,6 +759,15 @@ packages:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
+
+  overlayscrollbars-vue@0.5.10:
+    resolution: {integrity: sha512-vu35CJj/kzGBgkxsQyXCCCRRBz/3AvXhkDckuiRHphRE6CwXjbWATY0PVbn2KRy30NbaZhHqueH5yqPo8ItqTA==}
+    peerDependencies:
+      overlayscrollbars: ^2.0.0
+      vue: ^3.2.25
+
+  overlayscrollbars@2.16.0:
+    resolution: {integrity: sha512-N03oje/q7j93D0aLZtoCdsDSYLmhheSsv8H7oSLE7HhdV9P/bmCURtLV/KbPye7P/bpfyt/obSfDpGUYoJ0OWg==}
 
   parse-imports-exports@0.2.4:
     resolution: {integrity: sha512-4s6vd6dx1AotCx/RCI2m7t7GCh5bDRUtGNvRfHSP2wbBQdMi67pPe7mtzmgwcaQ8VKK/6IB7Glfyu3qdZJPybQ==}
@@ -1630,6 +1645,13 @@ snapshots:
   muggle-string@0.4.1: {}
 
   nanoid@3.3.12: {}
+
+  overlayscrollbars-vue@0.5.10(overlayscrollbars@2.16.0)(vue@3.5.34(typescript@6.0.3)):
+    dependencies:
+      overlayscrollbars: 2.16.0
+      vue: 3.5.34(typescript@6.0.3)
+
+  overlayscrollbars@2.16.0: {}
 
   parse-imports-exports@0.2.4:
     dependencies:

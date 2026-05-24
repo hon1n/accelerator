@@ -1,43 +1,21 @@
-import { api } from './index';
-import type { 
-  TasksListResponse, 
-  TaskDetailResponse, 
-  UploadTaskParams 
-} from '../types/tasks';
+import { api } from "./api";
+import type { UploadTaskData, UploadTaskResponse } from "./tasks.types";
 
-export const TasksService = {
+const TASKS_UPLOAD = "/api/v1/tasks/upload";
+
+export const tasksService = {
   /**
-   * Получение списка задач с пагинацией
+   * Multipart: сначала поле `data` (JSON), затем `audio` (файл) — как требует бекенд.
    */
-  async getTasks(page = 1, limit = 10, groupId?: string): Promise<TasksListResponse> {
-    const params: Record<string, any> = { page, limit };
-    if (groupId) params.group = groupId;
-
-    const response = await api.get<TasksListResponse>('/api/v1/tasks', { params });
-    return response.data;
-  },
-
-  /**
-   * Получение детальной информации о задаче
-   */
-  async getTaskById(taskId: string): Promise<TaskDetailResponse> {
-    const response = await api.get<TaskDetailResponse>(`/api/v1/tasks/${taskId}`);
-    return response.data;
-  },
-
-  /**
-   * Загрузка аудиофайла и создание задачи (multipart/form-data)
-   */
-  async uploadTask(file: File, data: UploadTaskParams): Promise<any> {
+  upload(audio: File, data: UploadTaskData): Promise<UploadTaskResponse> {
     const formData = new FormData();
-    formData.append('data', JSON.stringify(data));
-    formData.append('audio', file);
+    formData.append("data", JSON.stringify(data));
+    formData.append("audio", audio);
 
-    const response = await api.post('/api/v1/tasks/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  }
+    return api
+      .post<UploadTaskResponse>(TASKS_UPLOAD, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
 };
