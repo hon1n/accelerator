@@ -5,9 +5,7 @@ export {
   extractApiErrorMessage,
   getStoredAccessToken,
   getStoredRefreshToken,
-  getStoredUserRole,
   setStoredTokens,
-  setStoredUserRole,
   clearStoredTokens,
 } from "./utils";
 

@@ -6,12 +6,10 @@ import {
   extractApiErrorMessage,
   getStoredAccessToken,
   getStoredRefreshToken,
-  getStoredUserRole,
   setStoredTokens,
-  setStoredUserRole,
 } from "../api";
+import { registerLogoutHandler, registerRoleSetter } from "../api/auth-bridge";
 import router from "../router";
-import { roleFromAccessToken } from "../utils/jwt";
 
 const REQUIRES_PASSWORD_CHANGE_KEY = "requires_password_change";
 
@@ -39,17 +37,16 @@ function devRoleOverride(): string | null {
   return raw;
 }
 
-function resolveInitialRole(): string | null {
-  const override = devRoleOverride();
-  if (override) return override;
-  return getStoredUserRole() ?? roleFromAccessToken(getStoredAccessToken());
-}
-
 export const useAuthStore = defineStore("auth", () => {
   const accessToken = ref<string | null>(getStoredAccessToken());
   const refreshToken = ref<string | null>(getStoredRefreshToken());
-  const role = ref<string | null>(resolveInitialRole());
+  // Роль НЕ хранится в localStorage/sessionStorage. Источник истины — ответ
+  // /auth/login и /auth/refresh. Здесь это просто переменная в памяти модуля,
+  // недоступная пользователю через DevTools-хранилища браузера.
+  const role = ref<string | null>(devRoleOverride());
   const requiresPasswordChange = ref(readRequiresPasswordChange());
+  // Признак того, что начальный refresh при загрузке приложения завершился.
+  const isBootstrapped = ref(false);
 
   const isLoading = ref(false);
   const error = ref<string | null>(null);
@@ -58,18 +55,11 @@ export const useAuthStore = defineStore("auth", () => {
     accessToken.value = access;
     refreshToken.value = refresh;
     setStoredTokens(access, refresh, rememberMe);
-    const resolvedRole = devRoleOverride() ?? roleFromAccessToken(access);
-    if (resolvedRole) {
-      role.value = resolvedRole;
-      setStoredUserRole(resolvedRole, rememberMe);
-    }
   };
 
-  const setRole = (nextRole: string | null | undefined, rememberMe = true) => {
-    const finalRole = devRoleOverride() ?? nextRole;
-    if (!finalRole) return;
+  const setRole = (nextRole: string | null | undefined) => {
+    const finalRole = devRoleOverride() ?? nextRole ?? null;
     role.value = finalRole;
-    setStoredUserRole(finalRole, rememberMe);
   };
 
   const setRequiresPasswordChange = (value: boolean) => {
@@ -85,7 +75,7 @@ export const useAuthStore = defineStore("auth", () => {
       const data = await authService.login({ login: email, password: pass });
       const refresh = data.refresh_token ?? "";
       setTokens(data.access_token, refresh, rememberMe);
-      setRole(data.role, rememberMe);
+      setRole(data.user_role);
 
       if (data.temporary_password) {
         setRequiresPasswordChange(true);
@@ -120,26 +110,71 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  /**
+   * Пытается восстановить сессию при старте приложения.
+   * Роль не хранится в браузере, поэтому мы вытаскиваем её из ответа /auth/refresh.
+   */
+  const bootstrap = async () => {
+    if (isBootstrapped.value) return;
+    const storedRefresh = getStoredRefreshToken();
+    if (!storedRefresh) {
+      isBootstrapped.value = true;
+      return;
+    }
+
+    try {
+      const data = await authService.refresh({ refresh_token: storedRefresh });
+      const refresh = data.refresh_token ?? storedRefresh;
+      // Сохраняем токены в том же хранилище, в котором они уже лежали.
+      const persistent = localStorage.getItem("access_token") !== null
+        || (getStoredAccessToken() === null && localStorage.getItem("refresh_token") !== null);
+      setTokens(data.access_token, refresh, persistent);
+      setRole(data.user_role);
+    } catch {
+      // Невалидный refresh — чистим всё и отправляем на логин.
+      accessToken.value = null;
+      refreshToken.value = null;
+      role.value = devRoleOverride();
+      clearStoredTokens();
+    } finally {
+      isBootstrapped.value = true;
+    }
+  };
+
   const logout = () => {
     accessToken.value = null;
     refreshToken.value = null;
-    role.value = null;
+    role.value = devRoleOverride();
     error.value = null;
     setRequiresPasswordChange(false);
     clearStoredTokens();
     void router.push({ name: "Login" });
   };
 
+  // Пробрасываем сеттер роли и обработчик выхода в axios-интерсептор,
+  // чтобы /auth/refresh внутри интерсептора мог обновлять роль в памяти.
+  registerRoleSetter((nextRole) => {
+    setRole(nextRole);
+  });
+  registerLogoutHandler(() => {
+    accessToken.value = null;
+    refreshToken.value = null;
+    role.value = devRoleOverride();
+    setRequiresPasswordChange(false);
+  });
+
   return {
     accessToken,
     refreshToken,
     role,
     requiresPasswordChange,
+    isBootstrapped,
     isLoading,
     error,
     setTokens,
     setRole,
     setRequiresPasswordChange,
+    bootstrap,
     login,
     changeTempPassword,
     logout,

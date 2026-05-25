@@ -3,10 +3,14 @@ import { ref, onMounted, onUnmounted } from "vue";
 
 interface Props {
   align?: "left" | "right";
+  empty?: boolean;
+  emptyText?: string;
 }
 
 withDefaults(defineProps<Props>(), {
   align: "left",
+  empty: false,
+  emptyText: "Список пуст",
 });
 
 const isOpen = ref(false);
@@ -61,7 +65,14 @@ defineExpose({ close });
           },
         ]"
       >
-        <slot name="content" :close="close" />
+        <slot v-if="!empty" name="content" :close="close" />
+        <slot v-else name="empty">
+          <div
+            class="px-4 py-3 text-center text-sm text-gray-400 dark:text-gray-500"
+          >
+            {{ emptyText }}
+          </div>
+        </slot>
       </div>
     </Transition>
   </div>

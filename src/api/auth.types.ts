@@ -12,9 +12,11 @@ export interface RefreshTokenRequest {
 export interface AuthTokensResponse {
   access_token: string;
   refresh_token?: string;
-  expires_in: string;
+  /** Время истечения access-токена (ISO-строка). На бэкенде поле — `expires_at`. */
+  expires_at?: string;
   token_type: string;
-  role?: UserRole;
+  /** Роль пользователя, возвращаемая бэкендом (поле `user_role`). */
+  user_role?: UserRole;
   temporary_password?: boolean;
 }
 

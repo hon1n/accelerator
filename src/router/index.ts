@@ -139,10 +139,15 @@ const router = createRouter({
   },
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   document.title = (to.meta.title as string) || "Платформа протоколирования";
 
   const authStore = useAuthStore();
+  // Дожидаемся первой попытки восстановить сессию, чтобы роль из /auth/refresh
+  // успела попасть в стор до проверки requiresAdmin.
+  if (!authStore.isBootstrapped) {
+    await authStore.bootstrap();
+  }
 
   const isAuthenticated = !!authStore.accessToken;
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);

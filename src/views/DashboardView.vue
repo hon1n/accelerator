@@ -127,7 +127,11 @@ onMounted(async () => {
         </div>
 
         <!-- Group Selector -->
-        <Dropdown align="right">
+        <Dropdown
+          align="right"
+          :empty="groupsStore.groups.length === 0"
+          empty-text="Нет доступных групп"
+        >
           <template #trigger>
             <button
               class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-border dark:bg-dark-card dark:text-gray-200 dark:hover:bg-dark-elevated"

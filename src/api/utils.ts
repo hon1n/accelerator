@@ -3,7 +3,7 @@ import { ApiError, type ApiErrorResponse } from "./api.types";
 
 const ACCESS_TOKEN_KEYS = ["access_token"] as const;
 const REFRESH_TOKEN_KEYS = ["refresh_token"] as const;
-const USER_ROLE_KEY = "user_role";
+const LEGACY_USER_ROLE_KEY = "user_role";
 
 function readToken(storages: readonly Storage[], keys: readonly string[]): string | null {
   for (const storage of storages) {
@@ -23,15 +23,8 @@ export function getStoredRefreshToken(): string | null {
   return readToken([localStorage, sessionStorage], REFRESH_TOKEN_KEYS);
 }
 
-export function getStoredUserRole(): string | null {
-  return localStorage.getItem(USER_ROLE_KEY) ?? sessionStorage.getItem(USER_ROLE_KEY);
-}
-
-export function setStoredUserRole(role: string, persistent: boolean): void {
-  localStorage.removeItem(USER_ROLE_KEY);
-  sessionStorage.removeItem(USER_ROLE_KEY);
-  const storage = persistent ? localStorage : sessionStorage;
-  storage.setItem(USER_ROLE_KEY, role);
+export function rememberMeFromStorage(): boolean {
+  return localStorage.getItem("access_token") !== null;
 }
 
 export function setStoredTokens(access: string, refresh: string, persistent: boolean): void {
@@ -50,8 +43,17 @@ export function clearStoredTokens(): void {
     localStorage.removeItem(key);
     sessionStorage.removeItem(key);
   }
-  localStorage.removeItem(USER_ROLE_KEY);
-  sessionStorage.removeItem(USER_ROLE_KEY);
+  // Подчищаем легаси-ключ, если он остался от старых версий приложения.
+  localStorage.removeItem(LEGACY_USER_ROLE_KEY);
+  sessionStorage.removeItem(LEGACY_USER_ROLE_KEY);
+}
+
+// Одноразовая миграция: если роль ещё лежит в браузерном хранилище от
+// предыдущих версий — удаляем. Теперь роль приходит только из ответа
+// /auth/login и /auth/refresh и хранится исключительно в памяти.
+if (typeof window !== "undefined") {
+  localStorage.removeItem(LEGACY_USER_ROLE_KEY);
+  sessionStorage.removeItem(LEGACY_USER_ROLE_KEY);
 }
 
 export function extractApiErrorMessage(error: unknown, fallback = "Произошла ошибка"): string {

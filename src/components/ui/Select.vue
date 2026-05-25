@@ -126,25 +126,33 @@ onUnmounted(() => {
         leave-to-class="scale-95 opacity-0"
       >
         <div v-if="isOpen && !disabled" :class="fieldSelectMenuClass">
-          <button
-            v-for="option in normalizedOptions"
-            :key="option.value"
-            type="button"
-            :class="[
-              fieldSelectOptionClass,
-              option.value === modelValue
-                ? 'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white'
-                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated',
-            ]"
-            @click="selectOption(option.value)"
+          <template v-if="normalizedOptions.length > 0">
+            <button
+              v-for="option in normalizedOptions"
+              :key="option.value"
+              type="button"
+              :class="[
+                fieldSelectOptionClass,
+                option.value === modelValue
+                  ? 'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white'
+                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated',
+              ]"
+              @click="selectOption(option.value)"
+            >
+              <span class="truncate">{{ option.label }}</span>
+              <Check
+                v-if="option.value === modelValue"
+                :size="16"
+                class="ml-2 shrink-0"
+              />
+            </button>
+          </template>
+          <div
+            v-else
+            class="px-3.5 py-2.5 text-center text-sm text-gray-400 dark:text-gray-500"
           >
-            <span class="truncate">{{ option.label }}</span>
-            <Check
-              v-if="option.value === modelValue"
-              :size="16"
-              class="ml-2 shrink-0"
-            />
-          </button>
+            Список пуст
+          </div>
         </div>
       </Transition>
     </div>

@@ -8,8 +8,11 @@ import {
   clearStoredTokens,
   getStoredAccessToken,
   getStoredRefreshToken,
+  rememberMeFromStorage,
   setStoredTokens,
 } from "./utils";
+import { applyRole, notifyLogout } from "./auth-bridge";
+import type { AuthTokensResponse } from "./auth.types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -54,10 +57,6 @@ function isAuthEndpoint(url: string | undefined): boolean {
   return url.includes("/auth/login") || url.includes("/auth/refresh");
 }
 
-function rememberMeFromStorage(): boolean {
-  return localStorage.getItem("access_token") !== null;
-}
-
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getStoredAccessToken();
@@ -95,15 +94,17 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post<{
-          access_token: string;
-          refresh_token?: string;
-        }>(`${API_URL}/api/v1/auth/refresh`, {
-          refresh_token: refreshToken,
-        });
+        const { data } = await axios.post<AuthTokensResponse>(
+          `${API_URL}/api/v1/auth/refresh`,
+          { refresh_token: refreshToken },
+        );
 
         const newRefresh = data.refresh_token ?? refreshToken;
         setStoredTokens(data.access_token, newRefresh, rememberMeFromStorage());
+        // Роль приходит с каждым refresh — обновляем её в памяти стора.
+        if (data.user_role) {
+          applyRole(data.user_role);
+        }
 
         processQueue(null, data.access_token);
 
@@ -112,6 +113,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearStoredTokens();
+        notifyLogout();
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
@@ -121,6 +123,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !isAuthEndpoint(originalRequest?.url)) {
       clearStoredTokens();
+      notifyLogout();
       window.location.href = "/login";
       return Promise.reject(toApiError(error));
     }
