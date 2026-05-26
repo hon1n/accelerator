@@ -6,6 +6,7 @@ import {
   fieldControlSizeClass,
   fieldLabelClass,
   fieldSelectMenuClass,
+  fieldSelectMenuScrollClass,
   fieldSelectOptionClass,
   fieldWrapperClass,
 } from "./fieldStyles";
@@ -118,40 +119,42 @@ onUnmounted(() => {
       </button>
 
       <Transition
-        enter-active-class="transition duration-100 ease-out"
-        enter-from-class="scale-95 opacity-0"
-        enter-to-class="scale-100 opacity-100"
-        leave-active-class="transition duration-75 ease-in"
-        leave-from-class="scale-100 opacity-100"
-        leave-to-class="scale-95 opacity-0"
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="-translate-y-1 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition duration-100 ease-in"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="-translate-y-1 opacity-0"
       >
         <div v-if="isOpen && !disabled" :class="fieldSelectMenuClass">
-          <template v-if="normalizedOptions.length > 0">
-            <button
-              v-for="option in normalizedOptions"
-              :key="option.value"
-              type="button"
-              :class="[
-                fieldSelectOptionClass,
-                option.value === modelValue
-                  ? 'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white'
-                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated',
-              ]"
-              @click="selectOption(option.value)"
+          <div :class="fieldSelectMenuScrollClass">
+            <template v-if="normalizedOptions.length > 0">
+              <button
+                v-for="option in normalizedOptions"
+                :key="option.value"
+                type="button"
+                :class="[
+                  fieldSelectOptionClass,
+                  option.value === modelValue
+                    ? 'bg-blue-50 font-medium text-blue-600 dark:bg-white/10 dark:text-white'
+                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5',
+                ]"
+                @click="selectOption(option.value)"
+              >
+                <span class="truncate">{{ option.label }}</span>
+                <Check
+                  v-if="option.value === modelValue"
+                  :size="16"
+                  class="ml-2 shrink-0"
+                />
+              </button>
+            </template>
+            <div
+              v-else
+              class="px-3.5 py-2.5 text-center text-sm text-gray-400 dark:text-gray-500"
             >
-              <span class="truncate">{{ option.label }}</span>
-              <Check
-                v-if="option.value === modelValue"
-                :size="16"
-                class="ml-2 shrink-0"
-              />
-            </button>
-          </template>
-          <div
-            v-else
-            class="px-3.5 py-2.5 text-center text-sm text-gray-400 dark:text-gray-500"
-          >
-            Список пуст
+              Список пуст
+            </div>
           </div>
         </div>
       </Transition>

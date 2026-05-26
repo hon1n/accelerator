@@ -71,7 +71,7 @@ const groupOptions = computed(() => {
   }));
 });
 
-const displayedPatterns = computed(() => {
+const displayedPatterns = computed((): Array<PatternDto & { isDraft?: true }> => {
   const currentGroupId = form.value.groupId;
   
   if (activeTab.value === "global") {
@@ -84,6 +84,8 @@ const displayedPatterns = computed(() => {
         summary_prompt: "",
         additional_prompt: null,
         group_id: "",
+        created_at: "",
+        change_flag: false,
         isDraft: true as const,
       }));
     const globalPatterns = patternsStore.globalPatterns ?? [];
@@ -99,6 +101,8 @@ const displayedPatterns = computed(() => {
       summary_prompt: "",
       additional_prompt: null,
       group_id: d.groupId,
+      created_at: "",
+      change_flag: false,
       isDraft: true as const,
     }));
   

@@ -53,7 +53,9 @@ export const fieldControlSizeClass = "h-10 px-3.5";
 export const fieldTextareaSizeClass = "min-h-[5.5rem] px-3.5 py-2.5 resize-y";
 
 export const fieldSelectMenuClass =
-  "absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-border dark:bg-dark-card";
+  "absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-white/10 dark:bg-dark-elevated dark:shadow-black/40 dark:ring-white/5";
+
+export const fieldSelectMenuScrollClass = "max-h-60 overflow-y-auto";
 
 export const fieldSelectOptionClass =
-  "flex w-full items-center justify-between px-3.5 py-2 text-left text-sm transition-colors";
+  "flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors duration-150";

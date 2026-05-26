@@ -1,19 +1,23 @@
 ﻿<script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { Upload, ArrowLeft } from "@lucide/vue";
+import { ArrowLeft, Upload } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Select from "../components/ui/Select.vue";
 import Input from "../components/ui/Input.vue";
 import Textarea from "../components/ui/Textarea.vue";
 import Button from "../components/ui/Button.vue";
+import FormError from "../components/ui/FormError.vue";
 import { extractApiErrorMessage } from "../api";
-import { formatAdditionalPrompt } from "../api/patterns.utils";
 import { useGroupsStore } from "../stores/groups";
 import { usePatternsStore } from "../stores/patterns";
 import { useTasksStore } from "../stores/tasks";
-import { fieldControlClass, fieldControlSizeClass, fieldLabelClass } from "../components/ui/fieldStyles";
+import {
+  fieldControlClass,
+  fieldControlSizeClass,
+  fieldLabelClass,
+} from "../components/ui/fieldStyles";
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
@@ -26,70 +30,38 @@ const form = ref({
   taskName: "",
   description: "",
   patternId: "",
-  asrModel: "Whisper V4",
-  llmModel: "Qwen3",
-  tokens: "4000",
   file: null as File | null,
 });
 
 const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const groupOptions = computed(() => {
-  return groupsStore.groups.map((g) => ({
-    value: g.group_id,
-    label: g.name,
-  }));
-});
+const groupOptions = computed(() =>
+  groupsStore.groups.map((g) => ({ value: g.group_id, label: g.name })),
+);
 
 const patternOptions = computed(() => {
   if (!form.value.groupId) return [];
-  
   const patterns = [
     ...patternsStore.groupGlobalPatterns,
     ...patternsStore.groupLocalPatterns,
   ];
-  
-  return patterns.map((p) => ({
-    value: p.pattern_id,
-    label: p.name,
-  }));
+  return patterns.map((p) => ({ value: p.pattern_id, label: p.name }));
 });
 
-const asrModelOptions = [
-  { value: "Whisper V4", label: "Whisper V4" },
-  { value: "Whisper V3", label: "Whisper V3" },
-  { value: "Google Speech-to-Text", label: "Google Speech-to-Text" },
-];
+const fileName = computed(() =>
+  form.value.file ? form.value.file.name : "Не выбран ни один файл",
+);
 
-const llmModelOptions = [
-  { value: "Qwen3", label: "Qwen3" },
-  { value: "GPT-4o", label: "GPT-4o" },
-  { value: "Claude 3.5 Sonnet", label: "Claude 3.5 Sonnet" },
-];
-
-const tokensOptions = [
-  { value: "2000", label: "2000" },
-  { value: "4000", label: "4000" },
-  { value: "8000", label: "8000" },
-  { value: "16000", label: "16000" },
-];
-
-const fileName = computed(() => {
-  return form.value.file ? form.value.file.name : "Не выбран ни один файл";
-});
-
-const isFormValid = computed(() => {
-  return (
-    form.value.groupId &&
-    form.value.taskName.trim() &&
-    form.value.patternId &&
-    form.value.asrModel &&
-    form.value.llmModel &&
-    form.value.tokens &&
-    form.value.file
-  );
-});
+const isFormValid = computed(
+  () =>
+    !!form.value.groupId &&
+    form.value.taskName.trim().length > 0 &&
+    form.value.description.trim().length > 0 &&
+    !!form.value.meetingDate &&
+    !!form.value.patternId &&
+    !!form.value.file,
+);
 
 const triggerFileInput = () => {
   fileInputRef.value?.click();
@@ -97,58 +69,34 @@ const triggerFileInput = () => {
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    form.value.file = target.files[0];
-  } else {
-    form.value.file = null;
-  }
+  form.value.file = target.files && target.files.length > 0 ? target.files[0] : null;
 };
 
 const handleGroupChange = async (groupId: string) => {
   form.value.groupId = groupId;
   form.value.patternId = "";
-  
   if (groupId) {
-    await patternsStore.fetchGroupPatterns(groupId);
+    try {
+      await patternsStore.fetchGroupPatterns(groupId);
+    } catch {
+      // ошибка отобразится через store
+    }
   }
 };
 
 const handleSubmit = async () => {
   if (!isFormValid.value) return;
-
   error.value = null;
 
   try {
-    const selectedPattern = [
-      ...patternsStore.groupGlobalPatterns,
-      ...patternsStore.groupLocalPatterns,
-    ].find((p) => p.pattern_id === form.value.patternId);
+    const meetingDate = new Date(`${form.value.meetingDate}T12:00:00`).toISOString();
 
-    if (!selectedPattern) {
-      throw new Error("Шаблон не найден");
-    }
-
-    const meetingDate = form.value.meetingDate
-      ? new Date(`${form.value.meetingDate}T12:00:00`).toISOString()
-      : new Date().toISOString();
-
-    const additionalRaw = formatAdditionalPrompt(selectedPattern.additional_prompt);
-    const additional_prompt = additionalRaw.trim() ? additionalRaw : "{}";
-
-    const response = await tasksStore.uploadTask(
-      form.value.file!,
-      {
-        task_name: form.value.taskName.trim(),
-        description: form.value.description.trim(),
-        meeting_date: meetingDate,
-        summary_prompt: selectedPattern.summary_prompt,
-        additional_prompt,
-        asr_model: form.value.asrModel,
-        llm_model: form.value.llmModel,
-        tokens: form.value.tokens,
-      },
-      form.value.groupId,
-    );
+    const response = await tasksStore.uploadTask(form.value.groupId, form.value.file!, {
+      task_name: form.value.taskName.trim(),
+      description: form.value.description.trim(),
+      meeting_date: meetingDate,
+      pattern_id: form.value.patternId,
+    });
 
     await router.push({
       name: "RecordProcessingDetails",
@@ -160,12 +108,20 @@ const handleSubmit = async () => {
 };
 
 onMounted(async () => {
-  await groupsStore.fetchGroups();
-  
-  if (groupsStore.groups.length > 0) {
-    const firstGroupId = groupsStore.groups[0].group_id;
-    form.value.groupId = firstGroupId;
-    await patternsStore.fetchGroupPatterns(firstGroupId);
+  try {
+    await groupsStore.fetchGroups();
+  } catch {
+    return;
+  }
+
+  const initial = groupsStore.activeGroupId ?? groupsStore.groups[0]?.group_id ?? "";
+  if (initial) {
+    form.value.groupId = initial;
+    try {
+      await patternsStore.fetchGroupPatterns(initial);
+    } catch {
+      // ok
+    }
   }
 });
 </script>
@@ -175,7 +131,6 @@ onMounted(async () => {
     <Header />
 
     <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <!-- Back Button -->
       <button
         type="button"
         class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -185,31 +140,21 @@ onMounted(async () => {
         Главная
       </button>
 
-      <!-- Page Header -->
       <div class="mb-6">
         <p class="text-sm text-gray-500 dark:text-gray-400">Создание записи</p>
-        <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-          Создание записи
-        </h1>
+        <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Создание записи</h1>
       </div>
 
-      <!-- Form -->
       <Card padding="lg">
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <!-- Error Message -->
-          <div
-            v-if="error"
-            class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
-          >
-            {{ error }}
-          </div>
+          <FormError :message="error" />
 
-          <!-- Group and Date -->
           <div class="grid gap-6 sm:grid-cols-2">
             <Select
               label="Группа"
               :model-value="form.groupId"
               :options="groupOptions"
+              placeholder="Выберите группу"
               @update:model-value="handleGroupChange"
             />
 
@@ -234,24 +179,8 @@ onMounted(async () => {
             label="Шаблон конспекта"
             :options="patternOptions"
             :disabled="!form.groupId || patternOptions.length === 0"
+            placeholder="Выберите шаблон"
           />
-
-          <!-- Models -->
-          <div class="grid gap-6 sm:grid-cols-2">
-            <Select
-              v-model="form.asrModel"
-              label="Модель для транскрибации"
-              :options="asrModelOptions"
-            />
-
-            <Select
-              v-model="form.llmModel"
-              label="Модель для конспектирования"
-              :options="llmModelOptions"
-            />
-          </div>
-
-          <Select v-model="form.tokens" label="Количество токенов" :options="tokensOptions" />
 
           <div class="flex w-full flex-col gap-1.5">
             <label :class="fieldLabelClass">Аудиофайл</label>
@@ -259,7 +188,7 @@ onMounted(async () => {
               ref="fileInputRef"
               type="file"
               class="hidden"
-              accept="audio/*,video/*"
+              accept="audio/*"
               @change="handleFileChange"
             />
             <div
@@ -287,15 +216,13 @@ onMounted(async () => {
                 {{ fileName }}
               </span>
             </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              Поддерживаемые форматы: MP3, WAV, OGG, AAC, FLAC.
+            </p>
           </div>
 
-          <!-- Submit Button -->
           <div class="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              @click="router.push({ name: 'Dashboard' })"
-            >
+            <Button type="button" variant="outline" @click="router.push({ name: 'Dashboard' })">
               Отмена
             </Button>
             <Button type="submit" :disabled="!isFormValid" :is-loading="tasksStore.isUploading">

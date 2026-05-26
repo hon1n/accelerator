@@ -226,6 +226,12 @@ onMounted(async () => {
   if (editGroupId) {
     openEditModal(editGroupId);
   }
+
+  // Если передан query-параметр members — открываем модалку участников
+  const membersGroupId = route.query.members as string | undefined;
+  if (membersGroupId) {
+    await openMembersModal(membersGroupId);
+  }
 });
 </script>
 

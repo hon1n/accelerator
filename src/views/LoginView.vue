@@ -48,10 +48,10 @@ const handleLogin = async () => {
             <Button :is-loading="authStore.isLoading" type="submit"> Авторизоваться </Button>
           </div>
 
-          <!-- <p class="pt-4 text-center text-sm text-[#A8A9AC]">
+          <p class="pt-4 text-center text-sm text-[#A8A9AC]">
             Первый запуск?
             <router-link to="/setup" class="text-blue-600 hover:underline">Создать создателя</router-link>
-          </p> -->
+          </p>
         </form>
       </div>
     </div>

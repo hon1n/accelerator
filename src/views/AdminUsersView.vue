@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Plus, Search, Edit, Trash2, RefreshCw, Copy, Check } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
@@ -40,7 +40,7 @@ function opaqueGroupColor(groupId: string): string {
 }
 
 function navigateToGroup(groupId: string) {
-  router.push({ name: "AdminGroups", query: { edit: groupId } });
+  router.push({ name: "AdminGroups", query: { members: groupId } });
 }
 
 // Маппинг userId -> список групп, в которых состоит пользователь
@@ -112,7 +112,6 @@ const roleOptions = [
   { value: "", label: "Все роли" },
   { value: "user", label: "Пользователь" },
   { value: "admin", label: "Администратор" },
-  { value: "creator", label: "Создатель" },
 ];
 
 const roleOptionsForForm = [
@@ -175,6 +174,10 @@ const getRoleLabel = (role: string) => {
 const handlePageChange = (page: number) => {
   currentPage.value = page;
 };
+
+watch([searchQuery, selectedRole], () => {
+  currentPage.value = 1;
+});
 
 const handleCreateUser = async () => {
   createError.value = null;

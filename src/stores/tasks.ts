@@ -1,168 +1,278 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-import { extractApiErrorMessage, tasksService, type UploadTaskData } from "../api";
-import type { Pagination, TaskListItem } from "../types/tasks";
-import { DEMO_TASKS_ENABLED, generateDemoTasks, getDemoTaskDetail, type TaskDetail } from "../utils/demoTasks";
+import { computed, ref } from "vue";
 import {
-  formatMeetingDateLabel,
-  readStoredTasks,
-  upsertStoredTask,
-  type StoredTask,
-} from "../utils/taskStorage";
+  ApiError,
+  extractApiErrorMessage,
+  tasksService,
+  type EditTaskRequest,
+  type TaskDto,
+  type TaskStatusResponse,
+  type UploadTaskData,
+  type UploadTaskResponse,
+} from "../api";
+import { isDone, isError as isErrorStatus } from "../utils/taskStatus";
 
-function buildProcessingDetail(task: StoredTask): TaskDetail {
-  const wait = task.estimated_wait_seconds ?? Math.max(300, Math.round((task.duration_seconds ?? 0) * 0.5));
+const STATUS_POLL_INTERVAL_MS = 5000;
 
-  return {
-    ...task,
-    elapsed_time: 0,
-    estimated_time: wait,
-    stages: [
-      {
-        id: "noise_removal",
-        name: "Удаление шумов",
-        status: "completed",
-        progress: 100,
-        estimated_time: "Завершено",
-      },
-      {
-        id: "speech_recognition",
-        name: "Распознавание речи",
-        status: "in_progress",
-        progress: 10,
-        estimated_time: "В процессе",
-      },
-      {
-        id: "transcript_splitting",
-        name: "Разделение стенограмм",
-        status: "pending",
-        progress: 0,
-        estimated_time: "Запланировано",
-      },
-      {
-        id: "summary_generation",
-        name: "Создание конспекта",
-        status: "pending",
-        progress: 0,
-        estimated_time: "Запланировано",
-      },
-    ],
-  };
+interface ListState {
+  groupId: string;
+  page: number;
+  total: number;
 }
 
 export const useTasksStore = defineStore("tasks", () => {
-  const tasks = ref<TaskListItem[]>([]);
-  const pagination = ref<Pagination | null>(null);
+  // ---------- список задач (для DashboardView) ----------
+  const tasks = ref<TaskDto[]>([]);
+  const listState = ref<ListState | null>(null);
   const isLoading = ref(false);
-  const isUploading = ref(false);
   const error = ref<string | null>(null);
 
-  function listTasksForGroup(groupId?: string): TaskListItem[] {
-    const stored = groupId
-      ? readStoredTasks().filter((t) => t.group_id === groupId)
-      : readStoredTasks();
+  // ---------- состояние одной задачи (для деталей) ----------
+  const currentTask = ref<TaskDto | null>(null);
+  const currentStatus = ref<TaskStatusResponse | null>(null);
+  const isCurrentLoading = ref(false);
+  const currentError = ref<string | null>(null);
 
-    const demo = DEMO_TASKS_ENABLED ? generateDemoTasks() : [];
-    const merged = new Map<string, TaskListItem>();
+  // ---------- мутации ----------
+  const isUploading = ref(false);
+  const isMutating = ref(false);
 
-    for (const item of demo) {
-      merged.set(item.task_id, item);
+  // ---------- поллинг статуса ----------
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
+  let pollAbort = false;
+
+  const tasksByGroup = computed(() => {
+    if (!listState.value) return tasks.value;
+    return tasks.value.filter((t) => t.group_id === listState.value!.groupId);
+  });
+
+  function stopPolling(): void {
+    pollAbort = true;
+    if (pollTimer !== null) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
     }
-    for (const item of stored) {
-      merged.set(item.task_id, item);
-    }
-
-    return Array.from(merged.values());
   }
 
-  const fetchTasks = async (page = 1, limit = 100, groupId?: string) => {
+  async function fetchTasks(groupId: string, page = 1, limit = -1): Promise<void> {
     isLoading.value = true;
     error.value = null;
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      const all = listTasksForGroup(groupId);
-      const startIndex = (page - 1) * limit;
-      const endIndex = page * limit;
-
-      tasks.value = all.slice(startIndex, endIndex);
-      pagination.value = {
-        page,
-        limit,
-        total_items: all.length,
-        total_pages: Math.max(1, Math.ceil(all.length / limit)),
+      const data = await tasksService.listByGroup(groupId, page, limit);
+      tasks.value = data.tasks ?? [];
+      listState.value = {
+        groupId,
+        page: data.pagination?.page ?? page,
+        total: data.pagination?.total ?? tasks.value.length,
       };
     } catch (err: unknown) {
-      console.error("Failed to fetch tasks", err);
-      error.value = extractApiErrorMessage(err, "Не удалось загрузить список задач");
+      tasks.value = [];
+      if (err instanceof ApiError && err.isNotFound) {
+        error.value = "Группа не найдена или недоступна";
+      } else if (err instanceof ApiError && err.isForbidden) {
+        error.value = "Недостаточно прав для просмотра задач";
+      } else {
+        error.value = extractApiErrorMessage(err, "Не удалось загрузить список задач");
+      }
     } finally {
       isLoading.value = false;
     }
-  };
+  }
 
-  const uploadTask = async (audio: File, data: UploadTaskData, groupId: string) => {
+  async function uploadTask(
+    groupId: string,
+    audio: File,
+    data: UploadTaskData,
+  ): Promise<UploadTaskResponse> {
     isUploading.value = true;
     error.value = null;
 
     try {
-      const response = await tasksService.upload(audio, data);
-      const taskId = response.task_id?.trim() || crypto.randomUUID();
-      const status = response.status?.trim() || "processing_transcribe";
+      const response = await tasksService.upload(groupId, audio, data);
 
-      const stored: StoredTask = {
-        task_id: taskId,
-        task_name: data.task_name,
-        description: data.description,
-        original_filename: response.original_filename,
-        meeting_date: formatMeetingDateLabel(data.meeting_date ?? response.created_at),
-        duration_seconds: response.duration_seconds,
-        status,
+      // Локально вставим заглушку списка, чтобы карточка появилась сразу.
+      const placeholder: TaskDto = {
+        task_id: response.task_id,
+        user_id: "",
         group_id: groupId,
+        task_name: response.task_name,
+        description: response.description,
+        meeting_date: response.meeting_date,
+        pattern_id: response.pattern_id,
+        status: response.status,
+        result: null,
+        original_filename: response.original_filename,
+        duration_seconds: 0,
         created_at: response.created_at,
-        estimated_wait_seconds: response.estimated_wait_seconds,
+        updated_at: response.created_at,
+        started_at: "",
+        completed_at: "",
+        change_flag: response.change_flag,
       };
 
-      upsertStoredTask(stored);
-      return { ...response, task_id: taskId, status };
+      const idx = tasks.value.findIndex((t) => t.task_id === response.task_id);
+      if (idx >= 0) {
+        tasks.value[idx] = { ...tasks.value[idx], ...placeholder };
+      } else {
+        tasks.value = [placeholder, ...tasks.value];
+      }
+
+      return response;
     } catch (err: unknown) {
       error.value = extractApiErrorMessage(err, "Не удалось загрузить запись");
       throw err;
     } finally {
       isUploading.value = false;
     }
-  };
+  }
 
-  const getTaskDetail = (taskId: string): TaskDetail | null => {
-    if (DEMO_TASKS_ENABLED) {
-      const demo = getDemoTaskDetail(taskId);
-      if (demo) return demo;
+  async function fetchTask(taskId: string): Promise<TaskDto> {
+    isCurrentLoading.value = true;
+    currentError.value = null;
+
+    try {
+      const task = await tasksService.getById(taskId);
+      currentTask.value = task;
+      return task;
+    } catch (err: unknown) {
+      currentTask.value = null;
+      if (err instanceof ApiError && err.isNotFound) {
+        currentError.value = "Задача не найдена";
+      } else {
+        currentError.value = extractApiErrorMessage(err, "Не удалось загрузить задачу");
+      }
+      throw err;
+    } finally {
+      isCurrentLoading.value = false;
+    }
+  }
+
+  async function fetchStatus(taskId: string): Promise<TaskStatusResponse> {
+    const status = await tasksService.getStatus(taskId);
+    currentStatus.value = status;
+
+    // Синхронизируем статус и в списке, и в текущей задаче (без полной перезагрузки).
+    const idx = tasks.value.findIndex((t) => t.task_id === taskId);
+    if (idx >= 0 && tasks.value[idx].status !== status.status) {
+      tasks.value[idx] = { ...tasks.value[idx], status: status.status };
+    }
+    if (currentTask.value && currentTask.value.task_id === taskId) {
+      currentTask.value = { ...currentTask.value, status: status.status };
     }
 
-    const stored = readStoredTasks().find((t) => t.task_id === taskId);
-    if (!stored) return null;
+    return status;
+  }
 
-    if (stored.status === "done") {
-      return {
-        ...stored,
-        summary: stored.task_name
-          ? `Конспект для «${stored.task_name}» будет доступен после завершения обработки на сервере.`
-          : "Конспект будет доступен после завершения обработки.",
-        transcript: [],
-      };
+  /**
+   * Поллит статус задачи. Когда придёт `done`, дозагружает полный объект
+   * (с результатом) через GET /tasks/{taskID} и вызывает `onDone`.
+   * При ошибке/завершении просто перестаёт опрашивать.
+   */
+  function pollStatus(
+    taskId: string,
+    options: {
+      onUpdate?: (status: TaskStatusResponse) => void;
+      onDone?: (task: TaskDto) => void;
+      onError?: (err: unknown) => void;
+      intervalMs?: number;
+    } = {},
+  ): () => void {
+    stopPolling();
+    pollAbort = false;
+    const interval = options.intervalMs ?? STATUS_POLL_INTERVAL_MS;
+
+    const tick = async (): Promise<void> => {
+      if (pollAbort) return;
+      try {
+        const status = await fetchStatus(taskId);
+        if (pollAbort) return;
+        options.onUpdate?.(status);
+
+        if (isDone(status.status)) {
+          const task = await fetchTask(taskId);
+          if (pollAbort) return;
+          options.onDone?.(task);
+          return;
+        }
+
+        if (isErrorStatus(status.status)) {
+          options.onError?.(new Error("Обработка завершилась с ошибкой"));
+          return;
+        }
+
+        pollTimer = setTimeout(() => void tick(), interval);
+      } catch (err) {
+        if (pollAbort) return;
+        options.onError?.(err);
+      }
+    };
+
+    void tick();
+    return stopPolling;
+  }
+
+  async function updateTask(taskId: string, payload: EditTaskRequest): Promise<TaskDto> {
+    isMutating.value = true;
+    try {
+      const updated = await tasksService.update(taskId, payload);
+
+      const idx = tasks.value.findIndex((t) => t.task_id === taskId);
+      if (idx >= 0) tasks.value[idx] = updated;
+      if (currentTask.value && currentTask.value.task_id === taskId) {
+        currentTask.value = updated;
+      }
+      return updated;
+    } finally {
+      isMutating.value = false;
     }
+  }
 
-    return buildProcessingDetail(stored);
-  };
+  async function deleteTask(taskId: string): Promise<void> {
+    isMutating.value = true;
+    try {
+      await tasksService.remove(taskId);
+      tasks.value = tasks.value.filter((t) => t.task_id !== taskId);
+      if (currentTask.value && currentTask.value.task_id === taskId) {
+        currentTask.value = null;
+      }
+    } finally {
+      isMutating.value = false;
+    }
+  }
+
+  function reset(): void {
+    stopPolling();
+    tasks.value = [];
+    listState.value = null;
+    currentTask.value = null;
+    currentStatus.value = null;
+    error.value = null;
+    currentError.value = null;
+  }
 
   return {
+    // state
     tasks,
-    pagination,
+    tasksByGroup,
+    listState,
     isLoading,
-    isUploading,
     error,
+    currentTask,
+    currentStatus,
+    isCurrentLoading,
+    currentError,
+    isUploading,
+    isMutating,
+    // actions
     fetchTasks,
+    fetchTask,
+    fetchStatus,
+    pollStatus,
+    stopPolling,
     uploadTask,
-    getTaskDetail,
+    updateTask,
+    deleteTask,
+    reset,
   };
 });
