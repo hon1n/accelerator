@@ -348,9 +348,9 @@ useAutoRefresh(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-6 flex items-center justify-between">
         <div>

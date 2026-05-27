@@ -123,12 +123,12 @@ export const usePatternsStore = defineStore("patterns", () => {
   }
 
   function applyGlobalEntry(entry: GlobalCacheEntry): void {
-    globalPatterns.value = entry.patterns;
+    globalPatterns.value = entry.patterns ?? [];
   }
 
   function applyGroupEntry(entry: GroupPatternsCacheEntry): void {
-    groupGlobalPatterns.value = entry.global_patterns;
-    groupLocalPatterns.value = entry.group_patterns;
+    groupGlobalPatterns.value = entry.global_patterns ?? [];
+    groupLocalPatterns.value = entry.group_patterns ?? [];
   }
 
   async function fetchGlobalPatterns(options?: { force?: boolean }): Promise<void> {
@@ -148,7 +148,7 @@ export const usePatternsStore = defineStore("patterns", () => {
     try {
       const data = await patternsService.fetchGlobalPatterns();
       const entry: GlobalCacheEntry = {
-        patterns: data.global_patterns,
+        patterns: data.global_patterns ?? [],
         fetchedAt: Date.now(),
       };
       globalCache.value = entry;
@@ -185,7 +185,8 @@ export const usePatternsStore = defineStore("patterns", () => {
     try {
       const data = await patternsService.fetchGroupPatterns(groupId);
       const entry: GroupPatternsCacheEntry = {
-        ...data,
+        global_patterns: data.global_patterns ?? [],
+        group_patterns: data.group_patterns ?? [],
         fetchedAt: Date.now(),
       };
       groupPatternsCache.value.set(groupId, entry);

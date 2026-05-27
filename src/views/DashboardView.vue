@@ -117,7 +117,7 @@ const loadGroupTasks = async (groupId: string | null | undefined) => {
     tasksStore.tasks = [];
     return;
   }
-  await tasksStore.fetchTasks(groupId, 1, -1);
+  await tasksStore.fetchTasks(groupId, 1, 0);
 };
 
 const handleGroupSelect = async (groupId: string) => {
@@ -176,9 +176,9 @@ useAutoRefresh(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

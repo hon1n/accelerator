@@ -33,11 +33,16 @@ const realTasksService = {
       .then((r) => r.data);
   },
 
-  /** GET /api/v1/tasks/{groupID}/all — список задач в группе с пагинацией */
+  /**
+   * GET /api/v1/tasks/{groupID}/all — список задач в группе с пагинацией.
+   * `limit = 0` означает «без пагинации» (бекенд игнорирует limit/offset
+   * при limit <= 0). Отрицательные значения слать нельзя — серверная
+   * валидация `number` режет их с ответом «Ошибка во входных данных».
+   */
   listByGroup(
     groupId: string,
     page = 1,
-    limit = -1,
+    limit = 0,
   ): Promise<TasksListResponse> {
     return api
       .get<TasksListResponse>(`${TASKS}/${groupId}/all`, {

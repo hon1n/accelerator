@@ -429,14 +429,14 @@ useAutoRefresh(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1800px]" />
 
     <!-- Initial Loading State -->
     <div v-if="isInitialLoading" class="flex min-h-[50vh] items-center justify-center">
       <Spinner size="lg" class="text-blue-600 dark:text-white" />
     </div>
 
-    <main v-else class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main v-else class="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-6 flex items-center justify-between">
         <div>
@@ -458,7 +458,7 @@ useAutoRefresh(async () => {
             'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'global'
               ? 'bg-blue-600 text-white dark:bg-white dark:text-dark'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated',
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated cursor-pointer',
           ]"
           @click="handleTabChange('global')"
         >
@@ -469,7 +469,7 @@ useAutoRefresh(async () => {
             'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'group'
               ? 'bg-blue-600 text-white dark:bg-white dark:text-dark'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated',
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated cursor-pointer',
           ]"
           @click="handleTabChange('group')"
         >
@@ -597,7 +597,7 @@ useAutoRefresh(async () => {
                     <Input
                       v-model="section.title"
                       placeholder="Название секции"
-                      class="flex-1"
+                      class="flex-1 p-1.5"
                     />
                     <div class="flex items-center gap-1">
                       <button

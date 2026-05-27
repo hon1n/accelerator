@@ -19,10 +19,7 @@ withDefaults(defineProps<Props>(), {
         'p-3': padding === 'sm',
         'p-4': padding === 'md',
         'p-6': padding === 'lg',
-      },
-      {
-        'transition-shadow hover:shadow-md': hover,
-      },
+      }
     ]"
   >
     <slot />

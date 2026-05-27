@@ -238,9 +238,9 @@ const isKnownPipelineStatus = computed(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
       <div class="mb-6">
         <button
           type="button"

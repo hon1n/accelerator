@@ -368,7 +368,7 @@ export const mockTasksService = {
   listByGroup(
     groupId: string,
     page = 1,
-    limit = -1,
+    limit = 0,
   ): Promise<TasksListResponse> {
     ensureSeeded();
     tickAll();

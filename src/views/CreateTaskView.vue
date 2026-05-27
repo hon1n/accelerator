@@ -1,11 +1,12 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ArrowLeft, Upload } from "@lucide/vue";
+import { ArrowLeft, Upload, Paperclip } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Select from "../components/ui/Select.vue";
 import Input from "../components/ui/Input.vue";
+import DatePicker from "../components/ui/DatePicker.vue";
 import Textarea from "../components/ui/Textarea.vue";
 import Button from "../components/ui/Button.vue";
 import FormError from "../components/ui/FormError.vue";
@@ -15,7 +16,6 @@ import { usePatternsStore } from "../stores/patterns";
 import { useTasksStore } from "../stores/tasks";
 import {
   fieldControlClass,
-  fieldControlSizeClass,
   fieldLabelClass,
 } from "../components/ui/fieldStyles";
 import { useAutoRefresh } from "../composables/useAutoRefresh";
@@ -140,9 +140,9 @@ useAutoRefresh(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
       <button
         type="button"
         class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -170,7 +170,7 @@ useAutoRefresh(async () => {
               @update:model-value="handleGroupChange"
             />
 
-            <Input v-model="form.meetingDate" label="Дата встречи" type="date" />
+            <DatePicker v-model="form.meetingDate" label="Дата встречи" />
           </div>
 
           <Input
@@ -206,15 +206,15 @@ useAutoRefresh(async () => {
             <div
               :class="[
                 fieldControlClass(),
-                fieldControlSizeClass,
-                'flex items-center overflow-hidden p-0',
+                'flex h-10 items-center gap-0 overflow-hidden !p-0',
               ]"
             >
               <button
                 type="button"
-                class="h-full shrink-0 border-r border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-dark-border dark:bg-dark-elevated dark:text-gray-200 dark:hover:bg-dark-card"
+                class="inline-flex h-full shrink-0 items-center gap-2 rounded-l-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 active:scale-[0.98] dark:bg-white dark:text-dark dark:hover:bg-gray-200"
                 @click="triggerFileInput"
               >
+                <Paperclip :size="15" class="opacity-90" />
                 Выбор файла
               </button>
               <span
@@ -222,7 +222,7 @@ useAutoRefresh(async () => {
                 :class="
                   form.file
                     ? 'text-gray-900 dark:text-white'
-                    : 'text-gray-500 dark:text-gray-400'
+                    : 'text-gray-400 dark:text-gray-500'
                 "
               >
                 {{ fileName }}
@@ -234,9 +234,6 @@ useAutoRefresh(async () => {
           </div>
 
           <div class="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" @click="router.push({ name: 'Dashboard' })">
-              Отмена
-            </Button>
             <Button type="submit" :disabled="!isFormValid" :is-loading="tasksStore.isUploading">
               <Upload :size="18" />
               Создать запись

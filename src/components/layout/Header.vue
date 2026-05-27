@@ -13,6 +13,20 @@ import {
 import { useTheme } from "../../composables/useTheme";
 import { useAuthStore } from "../../stores/auth";
 
+interface Props {
+  /**
+   * Tailwind max-width класс для внутреннего контейнера шапки.
+   * Должен совпадать с шириной основного контента страницы,
+   * чтобы логотип/навигация/действия были выровнены по нему.
+   * Пример: "max-w-7xl", "max-w-4xl", "max-w-[1800px]".
+   */
+  maxWidth?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  maxWidth: "max-w-7xl",
+});
+
 const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
 const authStore = useAuthStore();
@@ -20,6 +34,11 @@ const authStore = useAuthStore();
 const isAdmin = computed(() => {
   return authStore.role === "admin" || authStore.role === "creator";
 });
+
+const containerClass = computed(
+  () =>
+    `mx-auto flex h-16 w-full ${props.maxWidth} items-center justify-between px-4 sm:px-6 lg:px-8`,
+);
 
 const handleLogout = () => {
   authStore.logout();
@@ -30,9 +49,7 @@ const handleLogout = () => {
   <header
     class="shrink-0 border-b border-gray-200 bg-white transition-colors dark:border-dark-border dark:bg-dark"
   >
-    <div
-      class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
-    >
+    <div :class="containerClass">
       <router-link to="/dashboard" class="flex items-center">
         <img src="../../assets/images/logo.svg" alt="Логотип" class="h-8" />
       </router-link>

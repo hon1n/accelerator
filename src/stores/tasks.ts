@@ -54,7 +54,7 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  async function fetchTasks(groupId: string, page = 1, limit = -1): Promise<void> {
+  async function fetchTasks(groupId: string, page = 1, limit = 0): Promise<void> {
     isLoading.value = true;
     error.value = null;
 

@@ -10,6 +10,7 @@ import Textarea from "../components/ui/Textarea.vue";
 import Modal from "../components/ui/Modal.vue";
 import Spinner from "../components/ui/Spinner.vue";
 import FormError from "../components/ui/FormError.vue";
+import DatePicker from "../components/ui/DatePicker.vue";
 import { extractApiErrorMessage, patternsService } from "../api";
 import { useTasksStore } from "../stores/tasks";
 import { downloadTextFile } from "../utils/download";
@@ -237,9 +238,9 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-dark">
-    <Header />
+    <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <main class="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8">
       <div v-if="isLoading" class="flex items-center justify-center py-12">
         <Spinner size="lg" class="text-blue-600 dark:text-white" />
       </div>
@@ -334,6 +335,13 @@ onMounted(async () => {
             </span>
           </div>
         </div>
+
+        <p
+          v-if="task.description"
+          class="mb-6 whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+        >
+          {{ task.description }}
+        </p>
 
         <div
           v-if="!hasResult"
@@ -430,7 +438,7 @@ onMounted(async () => {
         <FormError :message="editError" />
         <Input v-model="editForm.taskName" label="Название" />
         <Textarea v-model="editForm.description" label="Описание" :rows="4" />
-        <Input v-model="editForm.meetingDate" label="Дата встречи" type="date" />
+        <DatePicker v-model="editForm.meetingDate" label="Дата встречи" />
       </form>
 
       <template #footer="{ close }">
