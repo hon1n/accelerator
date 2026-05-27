@@ -16,6 +16,7 @@ import { useUsersStore } from "../stores/users";
 import { useGroupsStore, groupPrefix } from "../stores/groups";
 import { extractApiErrorMessage, groupService } from "../api";
 import { getInitials } from "../utils/initials.ts"
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const router = useRouter();
 const usersStore = useUsersStore();
@@ -50,8 +51,8 @@ function getUserGroups(userId: string): { group_id: string; name: string }[] {
   return userGroupsMap.value.get(userId) ?? [];
 }
 
-async function loadUserGroupsMap() {
-  await groupsStore.fetchGroups();
+async function loadUserGroupsMap(force = false) {
+  await groupsStore.fetchGroups({ force });
   const groups = groupsStore.groups;
 
   const map = new Map<string, { group_id: string; name: string }[]>();
@@ -331,8 +332,17 @@ const openResetPasswordModal = (userId: string) => {
 };
 
 onMounted(async () => {
-  await usersStore.fetchUsers({page: 1, limit: 100});
-  await loadUserGroupsMap();
+  await usersStore.fetchUsers({ page: 1, limit: 100, force: true });
+  await loadUserGroupsMap(true);
+});
+
+useAutoRefresh(async () => {
+  await usersStore.fetchUsers({
+    page: usersStore.currentPage,
+    limit: usersStore.currentLimit,
+    force: true,
+  });
+  await loadUserGroupsMap(true);
 });
 </script>
 

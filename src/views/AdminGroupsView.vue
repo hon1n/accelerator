@@ -15,6 +15,7 @@ import { useGroupsStore, groupColorClass, groupPrefix } from "../stores/groups";
 import { useUsersStore } from "../stores/users";
 import { extractApiErrorMessage } from "../api";
 import { getInitials } from "../utils/initials.ts"
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const route = useRoute();
 const groupsStore = useGroupsStore();
@@ -218,8 +219,8 @@ const openMembersModal = async (groupId: string) => {
 };
 
 onMounted(async () => {
-  await groupsStore.fetchGroups();
-  await usersStore.fetchUsers({page: 1, limit: 100});
+  await groupsStore.fetchGroups({ force: true });
+  await usersStore.fetchUsers({ page: 1, limit: 100, force: true });
 
   // Если передан query-параметр edit — открываем модалку редактирования
   const editGroupId = route.query.edit as string | undefined;
@@ -231,6 +232,18 @@ onMounted(async () => {
   const membersGroupId = route.query.members as string | undefined;
   if (membersGroupId) {
     await openMembersModal(membersGroupId);
+  }
+});
+
+useAutoRefresh(async () => {
+  await groupsStore.fetchGroups({ force: true });
+  await usersStore.fetchUsers({
+    page: usersStore.currentPage,
+    limit: usersStore.currentLimit,
+    force: true,
+  });
+  if (showMembersModal.value && selectedGroupId.value) {
+    await groupsStore.fetchGroupMembers(selectedGroupId.value, { force: true });
   }
 });
 </script>

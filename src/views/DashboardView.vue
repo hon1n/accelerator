@@ -16,6 +16,7 @@ import { extractApiErrorMessage } from "../api";
 import { useTasksStore } from "../stores/tasks";
 import { useGroupsStore } from "../stores/groups";
 import { toUiStatus } from "../utils/taskStatus";
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const router = useRouter();
 const tasksStore = useTasksStore();
@@ -156,9 +157,18 @@ watch(
 
 onMounted(async () => {
   try {
-    await groupsStore.fetchGroups();
+    await groupsStore.fetchGroups({ force: true });
   } catch {
     // если группы не подгрузились — список будет пустой, ошибка покажется через store.error
+  }
+  await loadGroupTasks(groupsStore.activeGroupId);
+});
+
+useAutoRefresh(async () => {
+  try {
+    await groupsStore.fetchGroups({ force: true });
+  } catch {
+    // ok
   }
   await loadGroupTasks(groupsStore.activeGroupId);
 });

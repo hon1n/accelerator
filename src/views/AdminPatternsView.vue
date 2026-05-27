@@ -14,6 +14,7 @@ import { usePatternsStore, buildCreatePayload, buildUpdatePayload, patternSaveEr
 import { useGroupsStore } from "../stores/groups";
 import { extractApiErrorMessage } from "../api";
 import type { PatternDto } from "../api";
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 interface Section {
   id: number;
@@ -401,8 +402,8 @@ watch(
 
 onMounted(async () => {
   try {
-    await groupsStore.fetchGroups();
-    await patternsStore.fetchGlobalPatterns();
+    await groupsStore.fetchGroups({ force: true });
+    await patternsStore.fetchGlobalPatterns({ force: true });
   } catch (error) {
     console.error("Failed to load initial data:", error);
   } finally {
@@ -410,6 +411,19 @@ onMounted(async () => {
   }
   
   selectFirstPatternOrCreate();
+});
+
+useAutoRefresh(async () => {
+  try {
+    await groupsStore.fetchGroups({ force: true });
+    if (activeTab.value === "global") {
+      await patternsStore.fetchGlobalPatterns({ force: true });
+    } else if (form.value.groupId) {
+      await patternsStore.fetchGroupPatterns(form.value.groupId, { force: true });
+    }
+  } catch (error) {
+    console.error("Failed to refresh patterns:", error);
+  }
 });
 </script>
 

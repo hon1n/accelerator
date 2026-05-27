@@ -18,6 +18,7 @@ import {
   fieldControlSizeClass,
   fieldLabelClass,
 } from "../components/ui/fieldStyles";
+import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
@@ -109,7 +110,7 @@ const handleSubmit = async () => {
 
 onMounted(async () => {
   try {
-    await groupsStore.fetchGroups();
+    await groupsStore.fetchGroups({ force: true });
   } catch {
     return;
   }
@@ -118,10 +119,21 @@ onMounted(async () => {
   if (initial) {
     form.value.groupId = initial;
     try {
-      await patternsStore.fetchGroupPatterns(initial);
+      await patternsStore.fetchGroupPatterns(initial, { force: true });
     } catch {
       // ok
     }
+  }
+});
+
+useAutoRefresh(async () => {
+  try {
+    await groupsStore.fetchGroups({ force: true });
+    if (form.value.groupId) {
+      await patternsStore.fetchGroupPatterns(form.value.groupId, { force: true });
+    }
+  } catch {
+    // ok
   }
 });
 </script>
