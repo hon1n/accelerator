@@ -91,11 +91,11 @@ const routes: Array<RouteRecordRaw> = [
     },
   },
   {
-    path: "/records/:id",
-    name: "RecordDetails",
-    component: () => import("../views/ReadyTaskDetailsView.vue"),
+    path: "/records/create",
+    name: "RecordCreate",
+    component: () => import("../views/CreateTaskView.vue"),
     meta: {
-      title: "Детали конспекта",
+      title: "Создание записи",
       requiresAuth: true,
     },
   },
@@ -109,11 +109,11 @@ const routes: Array<RouteRecordRaw> = [
     },
   },
   {
-    path: "/records/create",
-    name: "RecordCreate",
-    component: () => import("../views/CreateTaskView.vue"),
+    path: "/records/:id",
+    name: "RecordDetails",
+    component: () => import("../views/ReadyTaskDetailsView.vue"),
     meta: {
-      title: "Создание записи",
+      title: "Детали конспекта",
       requiresAuth: true,
     },
   },
