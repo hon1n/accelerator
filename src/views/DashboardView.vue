@@ -22,6 +22,8 @@ const router = useRouter();
 const tasksStore = useTasksStore();
 const groupsStore = useGroupsStore();
 
+const scrollContainer = ref<HTMLElement | null>(null);
+
 const searchQuery = ref("");
 const selectedDate = ref<"" | "today" | "week" | "month">("");
 const selectedStatus = ref<"" | "done" | "processing" | "pending" | "error">("");
@@ -105,7 +107,7 @@ const totalPages = computed(() =>
 
 const handlePageChange = (page: number) => {
   currentPage.value = page;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  scrollContainer.value?.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 const handleCreateTask = () => {
@@ -175,12 +177,12 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1200px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">Список задач</p>
           <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
@@ -227,7 +229,7 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Filters -->
-      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end">
           <div class="relative flex-1 sm:max-w-xs">
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -246,55 +248,59 @@ useAutoRefresh(async () => {
         </Button>
       </div>
 
-      <!-- Loading -->
-      <div v-if="tasksStore.isLoading" class="flex items-center justify-center py-12">
-        <Spinner size="lg" class="text-blue-600 dark:text-white" />
-      </div>
-
-      <!-- Error -->
-      <div
-        v-else-if="tasksStore.error"
-        class="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-900/20"
-      >
-        <p class="text-red-600 dark:text-red-400">{{ tasksStore.error }}</p>
-      </div>
-
-      <!-- Empty -->
-      <div
-        v-else-if="filteredTasks.length === 0"
-        class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-border dark:bg-dark-card"
-      >
-        <p class="text-gray-500 dark:text-gray-400">
-          {{
-            searchQuery || selectedStatus || selectedDate
-              ? "Записи не найдены"
-              : groupsStore.activeGroupId
-                ? "В этой группе пока нет записей"
-                : "Выберите группу, чтобы увидеть записи"
-          }}
-        </p>
-      </div>
-
-      <!-- Tasks -->
-      <div v-else class="space-y-4">
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <TaskCard
-            v-for="task in paginatedTasks"
-            :key="task.task_id"
-            :task="task"
-            @delete="requestDelete"
-          />
+      <!-- Scrollable content area -->
+      <div ref="scrollContainer" class="min-h-0 flex-1 overflow-y-auto">
+        <!-- Loading -->
+        <div v-if="tasksStore.isLoading" class="flex items-center justify-center py-12">
+          <Spinner size="lg" class="text-blue-600 dark:text-white" />
         </div>
 
-        <div v-if="totalPages > 1" class="mt-6">
-          <Pagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :total-items="filteredTasks.length"
-            :items-per-page="itemsPerPage"
-            @page-change="handlePageChange"
-          />
+        <!-- Error -->
+        <div
+          v-else-if="tasksStore.error"
+          class="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-900/20"
+        >
+          <p class="text-red-600 dark:text-red-400">{{ tasksStore.error }}</p>
         </div>
+
+        <!-- Empty -->
+        <div
+          v-else-if="filteredTasks.length === 0"
+          class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-border dark:bg-dark-card"
+        >
+          <p class="text-gray-500 dark:text-gray-400">
+            {{
+              searchQuery || selectedStatus || selectedDate
+                ? "Записи не найдены"
+                : groupsStore.activeGroupId
+                  ? "В этой группе пока нет записей"
+                  : "Выберите группу, чтобы увидеть записи"
+            }}
+          </p>
+        </div>
+
+        <!-- Tasks -->
+        <div v-else class="space-y-4 pb-2">
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <TaskCard
+              v-for="task in paginatedTasks"
+              :key="task.task_id"
+              :task="task"
+              @delete="requestDelete"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination (fixed below the scrolling list) -->
+      <div v-if="totalPages > 1" class="mt-4 shrink-0">
+        <Pagination
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :total-items="filteredTasks.length"
+          :items-per-page="itemsPerPage"
+          @page-change="handlePageChange"
+        />
       </div>
     </main>
 

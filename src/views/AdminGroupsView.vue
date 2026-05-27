@@ -249,12 +249,12 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex items-center justify-between">
+      <div class="mb-6 flex shrink-0 items-center justify-between">
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">Управление группами</p>
           <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Группы</h1>
@@ -266,7 +266,7 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Search -->
-      <div class="mb-6">
+      <div class="mb-6 shrink-0">
         <div class="relative max-w-xs">
           <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Search :size="18" class="text-gray-400" />
@@ -275,21 +275,23 @@ useAutoRefresh(async () => {
         </div>
       </div>
 
-      <!-- Groups Grid -->
-      <div v-if="groupsStore.isLoading" class="flex items-center justify-center py-12">
-        <Spinner size="lg" class="text-blue-600 dark:text-white" />
-      </div>
+      <!-- Scrollable content area -->
+      <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+        <!-- Groups Grid -->
+        <div v-if="groupsStore.isLoading" class="flex items-center justify-center py-12">
+          <Spinner size="lg" class="text-blue-600 dark:text-white" />
+        </div>
 
-      <div
-        v-else-if="filteredGroups.length === 0"
-        class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-border dark:bg-dark-card"
-      >
-        <p class="text-gray-500 dark:text-gray-400">
-          {{ searchQuery ? "Группы не найдены" : "Нет групп" }}
-        </p>
-      </div>
+        <div
+          v-else-if="filteredGroups.length === 0"
+          class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-border dark:bg-dark-card"
+        >
+          <p class="text-gray-500 dark:text-gray-400">
+            {{ searchQuery ? "Группы не найдены" : "Нет групп" }}
+          </p>
+        </div>
 
-      <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Card
           v-for="group in filteredGroups"
           :key="group.group_id"
@@ -350,6 +352,7 @@ useAutoRefresh(async () => {
             </Button>
           </div>
         </Card>
+      </div>
       </div>
     </main>
 

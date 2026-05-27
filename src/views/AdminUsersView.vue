@@ -347,12 +347,12 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex items-center justify-between">
+      <div class="mb-6 flex shrink-0 items-center justify-between">
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">
             Управление пользователями
@@ -368,7 +368,7 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Filters -->
-      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div class="mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center">
         <div class="relative flex-1 sm:max-w-xs">
           <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Search :size="18" class="text-gray-400" />
@@ -379,21 +379,21 @@ useAutoRefresh(async () => {
         <Select v-model="selectedRole" :options="roleOptions" class="sm:w-48" />
       </div>
 
-      <!-- Users Table -->
-      <Card padding="none">
-        <div v-if="usersStore.isLoading" class="flex items-center justify-center py-12">
+      <!-- Users Table (only this scrolls) -->
+      <Card padding="none" class="flex min-h-0 flex-1 flex-col">
+        <div v-if="usersStore.isLoading" class="flex flex-1 items-center justify-center py-12">
           <Spinner size="lg" class="text-blue-600 dark:text-white" />
         </div>
 
-        <div v-else-if="paginatedUsers.length === 0" class="py-12 text-center">
+        <div v-else-if="paginatedUsers.length === 0" class="flex flex-1 items-center justify-center py-12 text-center">
           <p class="text-gray-500 dark:text-gray-400">
             {{ searchQuery || selectedRole ? "Пользователи не найдены" : "Нет пользователей" }}
           </p>
         </div>
 
-        <div v-else>
+        <div v-else class="min-h-0 flex-1 overflow-y-auto">
           <table class="w-full">
-            <thead class="border-b border-gray-200 bg-gray-50 dark:border-dark-border dark:bg-dark-elevated">
+            <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-dark-border dark:bg-dark-elevated">
               <tr>
                 <th
                   class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
@@ -545,7 +545,7 @@ useAutoRefresh(async () => {
         </div>
 
         <!-- Pagination -->
-        <div v-if="totalPages > 1" class="border-t border-gray-200 p-4 dark:border-dark-border">
+        <div v-if="totalPages > 1" class="shrink-0 border-t border-gray-200 p-4 dark:border-dark-border">
           <Pagination
             :current-page="currentPage"
             :total-pages="totalPages"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import { Calendar, ChevronLeft, ChevronRight } from "@lucide/vue";
 import {
   fieldControlClass,
@@ -50,7 +50,17 @@ const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 const isOpen = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLButtonElement | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
 const view = ref<"days" | "months" | "years">("days");
+
+const menuStyle = ref<{ top: string; left: string; width?: string }>({
+  top: "0px",
+  left: "0px",
+});
+
+const MENU_WIDTH = 320; // 20rem
+const MENU_HEIGHT_ESTIMATE = 360;
 
 const today = new Date();
 today.setHours(0, 0, 0, 0);
@@ -209,11 +219,62 @@ const clear = () => {
 const toggleOpen = () => {
   if (props.disabled) return;
   isOpen.value = !isOpen.value;
-  if (isOpen.value) view.value = "days";
+  if (isOpen.value) {
+    view.value = "days";
+    void nextTick(updateMenuPosition);
+  }
 };
 
+function updateMenuPosition() {
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const margin = 8;
+
+  // Горизонтально: пытаемся выровнять по левому краю триггера, не вылезая из вьюпорта.
+  let left = rect.left;
+  if (left + MENU_WIDTH + margin > viewportWidth) {
+    left = Math.max(margin, viewportWidth - MENU_WIDTH - margin);
+  }
+  if (left < margin) left = margin;
+
+  // Вертикально: если снизу не хватает места — открываем вверх.
+  const spaceBelow = viewportHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  let top: number;
+  if (spaceBelow >= MENU_HEIGHT_ESTIMATE + margin || spaceBelow >= spaceAbove) {
+    top = rect.bottom + margin;
+  } else {
+    top = Math.max(margin, rect.top - MENU_HEIGHT_ESTIMATE - margin);
+  }
+
+  menuStyle.value = {
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+  };
+}
+
+const handleViewportChange = () => {
+  if (isOpen.value) updateMenuPosition();
+};
+
+watch(isOpen, (open) => {
+  if (open) {
+    void nextTick(updateMenuPosition);
+    window.addEventListener("scroll", handleViewportChange, true);
+    window.addEventListener("resize", handleViewportChange);
+  } else {
+    window.removeEventListener("scroll", handleViewportChange, true);
+    window.removeEventListener("resize", handleViewportChange);
+  }
+});
+
 const handleClickOutside = (event: MouseEvent) => {
-  if (rootRef.value && !rootRef.value.contains(event.target as Node)) {
+  const target = event.target as Node;
+  const insideRoot = rootRef.value?.contains(target);
+  const insideMenu = menuRef.value?.contains(target);
+  if (!insideRoot && !insideMenu) {
     isOpen.value = false;
   }
 };
@@ -232,6 +293,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("scroll", handleViewportChange, true);
+  window.removeEventListener("resize", handleViewportChange);
 });
 
 const wrapperClass = computed(() =>
@@ -257,7 +320,13 @@ const triggerClass = computed(() =>
     </label>
 
     <div class="relative w-full">
-      <button type="button" :disabled="disabled" :class="triggerClass" @click="toggleOpen">
+      <button
+        ref="triggerRef"
+        type="button"
+        :disabled="disabled"
+        :class="triggerClass"
+        @click="toggleOpen"
+      >
         <span class="min-w-0 flex-1 truncate">
           {{ displayValue || placeholder }}
         </span>
@@ -267,18 +336,28 @@ const triggerClass = computed(() =>
         />
       </button>
 
-      <Transition
-        enter-active-class="transition duration-150 ease-out"
-        enter-from-class="-translate-y-1 opacity-0"
-        enter-to-class="translate-y-0 opacity-100"
-        leave-active-class="transition duration-100 ease-in"
-        leave-from-class="translate-y-0 opacity-100"
-        leave-to-class="-translate-y-1 opacity-0"
-      >
-        <div
-          v-if="isOpen && !disabled"
-          :class="[fieldSelectMenuClass, 'w-[20rem] p-3']"
+      <Teleport to="body">
+        <Transition
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="-translate-y-1 opacity-0"
+          enter-to-class="translate-y-0 opacity-100"
+          leave-active-class="transition duration-100 ease-in"
+          leave-from-class="translate-y-0 opacity-100"
+          leave-to-class="-translate-y-1 opacity-0"
         >
+          <div
+            v-if="isOpen && !disabled"
+            ref="menuRef"
+            :class="[fieldSelectMenuClass, 'p-3']"
+            :style="{
+              position: 'fixed',
+              top: menuStyle.top,
+              left: menuStyle.left,
+              width: '20rem',
+              margin: 0,
+              zIndex: 100,
+            }"
+          >
           <!-- header -->
           <div class="mb-2 flex items-center justify-between gap-2">
             <button
@@ -411,7 +490,8 @@ const triggerClass = computed(() =>
             </button>
           </div>
         </div>
-      </Transition>
+        </Transition>
+      </Teleport>
     </div>
   </div>
 </template>

@@ -237,11 +237,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8">
-      <div v-if="isLoading" class="flex items-center justify-center py-12">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+      <div v-if="isLoading" class="flex flex-1 items-center justify-center">
         <Spinner size="lg" class="text-blue-600 dark:text-white" />
       </div>
 
@@ -255,7 +255,7 @@ onMounted(async () => {
       <template v-else-if="task">
         <button
           type="button"
-          class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          class="mb-4 flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
           @click="router.push({ name: 'Dashboard' })"
         >
           <ArrowLeft :size="16" />
@@ -263,7 +263,7 @@ onMounted(async () => {
         </button>
 
         <!-- Шапка: заголовок + плеер + действия -->
-        <div class="mb-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="mb-3 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="min-w-0 flex-1">
             <h1 class="truncate text-2xl font-bold text-gray-900 dark:text-white">
               {{ task.task_name || "Без названия" }}
@@ -301,7 +301,7 @@ onMounted(async () => {
         </div>
 
         <!-- Метаданные и шкала -->
-        <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="mb-6 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             {{ formattedMeetingDate }}
             <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template>
@@ -338,7 +338,7 @@ onMounted(async () => {
 
         <p
           v-if="task.description"
-          class="mb-6 whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+          class="mb-6 shrink-0 whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-300"
         >
           {{ task.description }}
         </p>
@@ -352,10 +352,10 @@ onMounted(async () => {
           </p>
         </div>
 
-        <div v-else class="grid gap-6 lg:grid-cols-2">
+        <div v-else class="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
           <!-- Конспект -->
-          <Card padding="lg" class="h-fit">
-            <div class="mb-2 flex items-start justify-between gap-3">
+          <Card padding="lg" class="flex min-h-0 flex-col">
+            <div class="mb-2 flex shrink-0 items-start justify-between gap-3">
               <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Конспект</h2>
                 <p v-if="patternName" class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -373,19 +373,21 @@ onMounted(async () => {
               </Button>
             </div>
 
-            <div
-              v-if="normalizedResult.summary"
-              class="summary-content text-sm text-gray-800 dark:text-gray-200"
-              v-html="renderedSummary"
-            />
-            <p v-else class="text-sm text-gray-500 dark:text-gray-400">
-              Конспект ещё не сформирован.
-            </p>
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div
+                v-if="normalizedResult.summary"
+                class="summary-content text-sm text-gray-800 dark:text-gray-200"
+                v-html="renderedSummary"
+              />
+              <p v-else class="text-sm text-gray-500 dark:text-gray-400">
+                Конспект ещё не сформирован.
+              </p>
+            </div>
           </Card>
 
           <!-- Стенограмма -->
-          <Card padding="lg" class="h-fit">
-            <div class="mb-4 flex items-center justify-between">
+          <Card padding="lg" class="flex min-h-0 flex-col">
+            <div class="mb-4 flex shrink-0 items-center justify-between">
               <h2 class="text-base font-semibold text-gray-900 dark:text-white">Стенограмма</h2>
               <Button
                 variant="outline"
@@ -398,36 +400,38 @@ onMounted(async () => {
               </Button>
             </div>
 
-            <div v-if="normalizedResult.transcript.length > 0" class="space-y-4">
-              <div
-                v-for="(entry, index) in normalizedResult.transcript"
-                :key="index"
-                class="space-y-2"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <span
-                    :class="[
-                      'inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide',
-                      speakerPillClass(entry.speaker),
-                    ]"
-                  >
-                    {{ entry.speaker }}
-                  </span>
-                  <span
-                    v-if="entry.timestamp"
-                    class="font-mono text-xs tabular-nums text-gray-400 dark:text-gray-500"
-                  >
-                    {{ entry.timestamp }}
-                  </span>
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div v-if="normalizedResult.transcript.length > 0" class="space-y-4">
+                <div
+                  v-for="(entry, index) in normalizedResult.transcript"
+                  :key="index"
+                  class="space-y-2"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <span
+                      :class="[
+                        'inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide',
+                        speakerPillClass(entry.speaker),
+                      ]"
+                    >
+                      {{ entry.speaker }}
+                    </span>
+                    <span
+                      v-if="entry.timestamp"
+                      class="font-mono text-xs tabular-nums text-gray-400 dark:text-gray-500"
+                    >
+                      {{ entry.timestamp }}
+                    </span>
+                  </div>
+                  <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                    {{ entry.text }}
+                  </p>
                 </div>
-                <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-                  {{ entry.text }}
-                </p>
               </div>
+              <p v-else class="text-sm text-gray-500 dark:text-gray-400">
+                Стенограмма недоступна.
+              </p>
             </div>
-            <p v-else class="text-sm text-gray-500 dark:text-gray-400">
-              Стенограмма недоступна.
-            </p>
           </Card>
         </div>
       </template>

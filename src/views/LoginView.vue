@@ -22,7 +22,7 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <main class="flex min-h-screen w-full bg-white dark:bg-dark">
+  <main class="flex h-screen w-full overflow-hidden bg-white dark:bg-dark">
     <div class="flex flex-1 flex-col items-center justify-center p-6 sm:p-12">
       <div class="w-full max-w-100">
         <div class="mb-4.5">
@@ -48,10 +48,10 @@ const handleLogin = async () => {
             <Button :is-loading="authStore.isLoading" type="submit"> Авторизоваться </Button>
           </div>
 
-          <p class="pt-4 text-center text-sm text-[#A8A9AC]">
+          <!-- <p class="pt-4 text-center text-sm text-[#A8A9AC]">
             Первый запуск?
             <router-link to="/setup" class="text-blue-600 hover:underline">Создать создателя</router-link>
-          </p>
+          </p> -->
         </form>
       </div>
     </div>

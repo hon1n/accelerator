@@ -139,10 +139,10 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto w-full min-h-0 max-w-[1200px] flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <button
         type="button"
         class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"

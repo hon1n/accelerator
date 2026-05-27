@@ -428,17 +428,17 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
     <!-- Initial Loading State -->
-    <div v-if="isInitialLoading" class="flex min-h-[50vh] items-center justify-center">
+    <div v-if="isInitialLoading" class="flex flex-1 items-center justify-center">
       <Spinner size="lg" class="text-blue-600 dark:text-white" />
     </div>
 
-    <main v-else class="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
+    <main v-else class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex items-center justify-between">
+      <div class="mb-6 flex shrink-0 items-center justify-between">
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">Шаблоны</p>
           <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
@@ -452,7 +452,7 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Tabs -->
-      <div class="mb-6 flex gap-2">
+      <div class="mb-6 flex shrink-0 gap-2">
         <button
           :class="[
             'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
@@ -478,7 +478,7 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Group Selector for Group Tab -->
-      <div v-if="activeTab === 'group'" class="mb-6">
+      <div v-if="activeTab === 'group'" class="mb-6 shrink-0">
         <Select
           :model-value="form.groupId"
           :options="groupOptions"
@@ -487,14 +487,14 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Content Grid -->
-      <div class="grid gap-6 lg:grid-cols-12">
+      <div class="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
         <!-- Patterns List -->
-        <Card padding="none" class="lg:col-span-4 xl:col-span-3">
-          <div class="border-b border-gray-200 p-4 dark:border-dark-border">
+        <Card padding="none" class="flex min-h-0 flex-col lg:col-span-4 xl:col-span-3">
+          <div class="shrink-0 border-b border-gray-200 p-4 dark:border-dark-border">
             <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Список</h2>
           </div>
 
-          <div class="max-h-[600px] space-y-2 overflow-y-auto p-4">
+          <div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
             <div v-if="patternsStore.isLoading" class="flex justify-center py-8">
               <Spinner size="md" class="text-blue-600 dark:text-white" />
             </div>
@@ -531,9 +531,9 @@ useAutoRefresh(async () => {
         </Card>
 
         <!-- Pattern Editor -->
-        <Card padding="none" class="lg:col-span-8 xl:col-span-9">
+        <Card padding="none" class="flex min-h-0 flex-col lg:col-span-8 xl:col-span-9">
           <div
-            class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-dark-border"
+            class="flex shrink-0 items-center justify-between border-b border-gray-200 p-6 dark:border-dark-border"
           >
             <div>
               <p class="text-xs text-gray-500 dark:text-gray-400">Редактирование</p>
@@ -557,7 +557,7 @@ useAutoRefresh(async () => {
             </div>
           </div>
 
-          <div class="max-h-[600px] space-y-6 overflow-y-auto p-6">
+          <div class="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
             <FormError :message="saveError" />
 
             <!-- Basic Info -->

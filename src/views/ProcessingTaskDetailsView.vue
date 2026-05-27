@@ -30,7 +30,10 @@ import type { TaskStatus } from "../api/tasks.types";
 interface Stage {
   status: TaskStatus;
   name: string;
+  description: string;
   state: "completed" | "in_progress" | "pending" | "error";
+  detail: string;
+  isCurrent: boolean;
 }
 
 const route = useRoute();
@@ -50,17 +53,35 @@ let stopPoll: (() => void) | null = null;
  * Текущий «представительный» этап для шкалы.
  * Все *_pending → ожидание (предыдущий этап в группе).
  */
-const STAGE_GROUPS: Array<{ statuses: TaskStatus[]; name: string }> = [
-  { statuses: ["processing_upload"], name: "Загрузка файла" },
-  { statuses: ["pending_denoise", "processing_denoise"], name: "Шумоподавление" },
+const STAGE_GROUPS: Array<{
+  statuses: TaskStatus[];
+  name: string;
+  description: string;
+}> = [
+  {
+    statuses: ["processing_upload"],
+    name: "Загрузка файла",
+    description: "Аудиофайл сохраняется в хранилище и подготавливается к обработке.",
+  },
+  {
+    statuses: ["pending_denoise", "processing_denoise"],
+    name: "Шумоподавление",
+    description: "Удаляются фоновые шумы для повышения качества распознавания.",
+  },
   {
     statuses: ["pending_transcribe", "processing_transcribe"],
     name: "Распознавание речи",
+    description: "Аудио преобразуется в текст с разметкой по времени.",
   },
-  { statuses: ["pending_diarize", "processing_diarize"], name: "Диаризация" },
+  {
+    statuses: ["pending_diarize", "processing_diarize"],
+    name: "Диаризация",
+    description: "Определяется количество спикеров и их реплики.",
+  },
   {
     statuses: ["pending_summarize", "processing_summarize"],
     name: "Создание конспекта",
+    description: "Формируется итоговый конспект встречи по выбранному шаблону.",
   },
 ];
 
@@ -77,13 +98,15 @@ const currentStageIndex = computed(() => {
 const stages = computed<Stage[]>(() =>
   STAGE_GROUPS.map((group, index) => {
     const idx = currentStageIndex.value;
+    const status = currentStatus.value;
+
     let state: Stage["state"];
     if (idx === -1) {
       state = "pending";
     } else if (index < idx) {
       state = "completed";
     } else if (index === idx) {
-      const s = currentStatus.value!;
+      const s = status!;
       if (isError(s)) state = "error";
       else if (isProcessing(s)) state = "in_progress";
       else if (isPending(s)) state = "pending";
@@ -91,13 +114,46 @@ const stages = computed<Stage[]>(() =>
     } else {
       state = "pending";
     }
+
+    const isCurrent = index === idx;
+    const detail = buildStageDetail(state, isCurrent);
+
     return {
       status: group.statuses[0],
       name: group.name,
+      description: group.description,
       state,
+      detail,
+      isCurrent,
     };
   }),
 );
+
+function buildStageDetail(state: Stage["state"], isCurrent: boolean): string {
+  if (state === "completed") return "Этап успешно завершён";
+  if (state === "error") return "На этом этапе произошла ошибка";
+
+  if (!isCurrent) return "Ожидает запуска";
+
+  if (state === "pending") {
+    if (queueBefore.value > 0) {
+      const word =
+        queueBefore.value === 1
+          ? "задача"
+          : queueBefore.value >= 2 && queueBefore.value <= 4
+            ? "задачи"
+            : "задач";
+      return `В очереди — перед вами ${queueBefore.value} ${word}`;
+    }
+    return "В очереди — скоро начнётся";
+  }
+
+  // in_progress
+  if (leadTimeMinutes.value > 0) {
+    return `Идёт обработка, осталось ~${formatMinutes(leadTimeMinutes.value).replace(/^~/, "")}`;
+  }
+  return "Идёт обработка";
+}
 
 const queueBefore = computed(
   () => tasksStore.currentStatus?.in_the_queue_before ?? 0,
@@ -237,11 +293,11 @@ const isKnownPipelineStatus = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark">
+  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1200px]" />
 
-    <main class="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
-      <div class="mb-6">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1200px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+      <div class="mb-6 shrink-0">
         <button
           type="button"
           class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -268,7 +324,7 @@ const isKnownPipelineStatus = computed(() => {
         </p>
       </div>
 
-      <div v-if="isLoading" class="flex items-center justify-center py-12">
+      <div v-if="isLoading" class="flex flex-1 items-center justify-center">
         <Spinner size="lg" class="text-blue-600 dark:text-white" />
       </div>
 
@@ -279,7 +335,7 @@ const isKnownPipelineStatus = computed(() => {
         <p class="text-red-600 dark:text-red-400">{{ error }}</p>
       </div>
 
-      <div v-else class="space-y-6">
+      <div v-else class="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
         <div class="grid gap-4 sm:grid-cols-3">
           <Card padding="md">
             <div class="flex items-center gap-3">
@@ -398,6 +454,27 @@ const isKnownPipelineStatus = computed(() => {
                       <h3 class="font-medium text-gray-900 dark:text-white">
                         {{ stage.name }}
                       </h3>
+                      <p
+                        class="mt-1 text-sm text-gray-600 dark:text-gray-400"
+                      >
+                        {{ stage.description }}
+                      </p>
+                      <p
+                        :class="[
+                          'mt-2 text-xs font-medium',
+                          {
+                            'text-green-700 dark:text-green-400':
+                              stage.state === 'completed',
+                            'text-yellow-700 dark:text-yellow-400':
+                              stage.state === 'in_progress',
+                            'text-red-700 dark:text-red-400': stage.state === 'error',
+                            'text-gray-500 dark:text-gray-400':
+                              stage.state === 'pending',
+                          },
+                        ]"
+                      >
+                        {{ stage.detail }}
+                      </p>
                     </div>
                   </div>
 
@@ -407,10 +484,10 @@ const isKnownPipelineStatus = computed(() => {
                 </div>
               </div>
 
-              <div
+              <!-- <div
                 v-if="index < stages.length - 1"
                 class="ml-5 h-4 w-0.5 bg-gray-200 dark:bg-dark-border"
-              />
+              /> -->
             </div>
           </div>
         </Card>

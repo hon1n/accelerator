@@ -7,7 +7,7 @@ initTheme();
 
 <template>
   <router-view v-slot="{ Component }">
-    <transition name="fade" mode="out-in">
+    <transition name="fade">
       <component :is="Component" />
     </transition>
   </router-view>
@@ -16,7 +16,7 @@ initTheme();
 <style>
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
 .fade-enter-from,

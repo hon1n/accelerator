@@ -48,84 +48,18 @@ html {
   font-family: var(--font-inter);
 }
 
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
 html.dark {
   background-color: oklch(14% 0.000 0);
   color-scheme: dark;
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: oklch(75% 0.01 260) transparent;
-}
-
-.dark,
-.dark * {
-  scrollbar-color: oklch(35% 0.005 260) transparent;
-}
-
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 9999px;
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: oklch(80% 0.008 260);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  transition: background-color 0.2s ease;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background-color: oklch(70% 0.012 260);
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-thumb:active {
-  background-color: oklch(60% 0.015 260);
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.dark::-webkit-scrollbar-thumb,
-.dark *::-webkit-scrollbar-thumb {
-  background-color: oklch(32% 0.005 260);
-  background-clip: padding-box;
-}
-
-.dark::-webkit-scrollbar-thumb:hover,
-.dark *::-webkit-scrollbar-thumb:hover {
-  background-color: oklch(42% 0.008 260);
-  background-clip: padding-box;
-}
-
-.dark::-webkit-scrollbar-thumb:active,
-.dark *::-webkit-scrollbar-thumb:active {
-  background-color: oklch(52% 0.01 260);
-  background-clip: padding-box;
-}
-
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  border: 1px solid transparent;
-}
-
-.scrollbar-hidden::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hidden {
-  scrollbar-width: none;
 }
