@@ -11,10 +11,13 @@
       connect-src 'self'                  — fetch/XHR/WebSocket к самому фронту (включая Vite-прокси /api и HMR)
       connect-src http://localhost:8000   — прямые запросы к бекенду (VITE_API_URL)
       connect-src ws: wss:                — нужно Vite HMR в dev-режиме
+      media-src   http://localhost:9000   — presigned-URL'ы из MinIO для встроенного аудиоплеера
+                                            (браузер сам подтягивает аудио по ссылке из /tasks/{id}/audio).
+                                            В проде CSP нужно сузить до реального публичного хоста MinIO.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 ws: wss:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://localhost:9000 http://127.0.0.1:9000 ws: wss:; media-src 'self' blob: http://localhost:9000 http://127.0.0.1:9000; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
     />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />

@@ -105,3 +105,15 @@ export interface EditTaskRequest {
   description?: string;
   meeting_date?: string;
 }
+
+/**
+ * Ответ на GET /tasks/{taskID}/audio — временная presigned-ссылка на
+ * исходный аудиофайл, лежащий в MinIO по ключу `uploads/{groupID}/{taskID}/audio.wav`.
+ * Ссылка живёт ограниченное время (по умолчанию час, см. LimitAudioURLMinuts на бэке):
+ * после её истечения нужно запросить новую.
+ */
+export interface TaskAudioUrlResponse {
+  url: string;
+  /** ISO-время, когда ссылка перестанет работать. Опционально. */
+  expires_at?: string;
+}

@@ -727,6 +727,20 @@ export const mockTasksService = {
     STORE.splice(idx, 1);
     return delay(undefined);
   },
+
+  getAudioUrl(taskId: string): Promise<{ url: string; expires_at?: string }> {
+    // В in-memory моке настоящего файла нет — возвращаем 404, чтобы UI
+    // отрисовал состояние «аудио недоступно». Реальный backend ответит
+    // на этот эндпоинт presigned-ссылкой на uploads/{groupID}/{taskID}/audio.wav.
+    ensureSeeded();
+    const task = findById(taskId);
+    if (!task) {
+      return Promise.reject(new ApiError("Задача не найдена", 404));
+    }
+    return Promise.reject(
+      new ApiError("Аудио недоступно в режиме мока", 404),
+    );
+  },
 };
 
 export type TasksServiceLike = typeof mockTasksService;

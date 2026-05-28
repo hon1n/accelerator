@@ -65,8 +65,12 @@ const availableUsers = computed(() => {
   return usersStore.users.filter((u) => u.role === "user" || u.role === "admin");
 });
 
-const ownerOptions = computed(() =>
-  availableUsers.value.map((user) => ({
+const adminUsers = computed(() =>
+  usersStore.users.filter((u) => u.role === "admin"),
+);
+
+const adminOwnerOptions = computed(() =>
+  adminUsers.value.map((user) => ({
     value: user.user_id,
     label: user.full_name,
   })),
@@ -97,16 +101,13 @@ const handleCreateGroup = async () => {
     createError.value = "Укажите название группы";
     return;
   }
-  if (!createForm.value.ownerId) {
-    createError.value = "Выберите владельца группы";
-    return;
-  }
 
   try {
+    const ownerId = createForm.value.ownerId.trim();
     await groupsStore.createGroup({
       name: createForm.value.name.trim(),
       description: createForm.value.description.trim(),
-      owner_id: createForm.value.ownerId,
+      ...(ownerId ? { owner_id: ownerId } : {}),
     });
 
     showCreateModal.value = false;
@@ -128,10 +129,6 @@ const handleEditGroup = async () => {
 
   if (!editForm.value.name.trim()) {
     editError.value = "Укажите название группы";
-    return;
-  }
-  if (!editForm.value.ownerId) {
-    editError.value = "Выберите владельца группы";
     return;
   }
 
@@ -371,10 +368,13 @@ useAutoRefresh(async () => {
         <div>
           <Select
             v-model="createForm.ownerId"
-            label="Владелец"
-            :options="ownerOptions"
-            placeholder="Выберите владельца"
+            label="Владелец (необязательно)"
+            :options="adminOwnerOptions"
+            placeholder="Назначить позже"
           />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Если не выбрать, владельцем будете считаться вы. Назначить администратора владельцем можно позже в настройках группы.
+          </p>
         </div>
       </form>
 
@@ -400,8 +400,8 @@ useAutoRefresh(async () => {
           <Select
             v-model="editForm.ownerId"
             label="Владелец"
-            :options="ownerOptions"
-            placeholder="Выберите владельца"
+            :options="adminOwnerOptions"
+            placeholder="Без владельца"
           />
         </div>
       </form>

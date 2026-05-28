@@ -22,6 +22,29 @@ export const userService = {
       .then((r) => r.data);
   },
 
+  /**
+   * Проверяет, доступна ли первичная регистрация создателя.
+   * Бекенд использует тот же эндпоинт `/creator/registration` с флагом
+   * `is_check: true`: при пустой таблице пользователей возвращает 201
+   * с фиктивными данными, иначе 404. В БД ничего не записывает.
+   */
+  async isCreatorRegistrationAvailable(): Promise<boolean> {
+    try {
+      // Значения должны проходить валидацию бекенда (email, fio, min=8),
+      // но никуда не сохраняются — это лишь зонд.
+      await api.post<AddCreatorResponse>(CREATOR_REGISTRATION, {
+        login: "check@check.ru",
+        full_name: "Проверка Проверка Проверка",
+        position: "Проверка",
+        password: "checkcheck",
+        is_check: true,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   getUsers(params: GetUsersParams): Promise<GetUsersResponse> {
     return api
       .get<GetUsersResponse>(`${ADMIN_USERS}/`, {

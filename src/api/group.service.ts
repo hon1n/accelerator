@@ -9,10 +9,11 @@ import type {
 } from "./group.types";
 
 const ADMIN_GROUPS = "/api/v1/admin/groups";
+const GROUPS = "/api/v1/groups";
 
 export const groupService = {
   getGroups(): Promise<GetGroupsResponse> {
-    return api.get<GetGroupsResponse>(`${ADMIN_GROUPS}/`).then((r) => r.data);
+    return api.get<GetGroupsResponse>(`${GROUPS}/`).then((r) => r.data);
   },
 
   getGroupMembers(groupId: string): Promise<GetGroupMembersResponse> {

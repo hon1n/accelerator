@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { useAuthStore } from "../stores/auth";
+import { userService } from "../api";
 import Input from "../components/ui/Input.vue";
 import Button from "../components/ui/Button.vue";
 import Checkbox from "../components/ui/Checkbox.vue";
@@ -13,6 +14,12 @@ const form = reactive({
   login: "",
   password: "",
   rememberMe: false,
+});
+
+const canRegisterCreator = ref(false);
+
+onMounted(async () => {
+  canRegisterCreator.value = await userService.isCreatorRegistrationAvailable();
 });
 
 const handleLogin = async () => {
@@ -48,10 +55,10 @@ const handleLogin = async () => {
             <Button :is-loading="authStore.isLoading" type="submit"> Авторизоваться </Button>
           </div>
 
-          <!-- <p class="pt-4 text-center text-sm text-[#A8A9AC]">
+          <p v-if="canRegisterCreator" class="pt-4 text-center text-sm text-[#A8A9AC]">
             Первый запуск?
             <router-link to="/setup" class="text-blue-600 hover:underline">Создать создателя</router-link>
-          </p> -->
+          </p>
         </form>
       </div>
     </div>

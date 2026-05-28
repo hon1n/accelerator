@@ -41,6 +41,13 @@ export interface AddCreatorRequest {
   full_name: string;
   position: string;
   password: string;
+  /**
+   * Если `true`, бекенд только проверяет, пуста ли таблица пользователей,
+   * и возвращает фиктивные данные без записи в БД. При непустой таблице
+   * вернётся 404. Используется фронтом для определения, нужно ли
+   * показывать ссылку на первичную настройку.
+   */
+  is_check?: boolean;
 }
 
 export interface AddCreatorResponse {

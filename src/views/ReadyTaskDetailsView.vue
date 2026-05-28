@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ArrowLeft, Clock, Download, Edit, Pause, Play, Trash2 } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
@@ -11,7 +11,7 @@ import Modal from "../components/ui/Modal.vue";
 import Spinner from "../components/ui/Spinner.vue";
 import FormError from "../components/ui/FormError.vue";
 import DatePicker from "../components/ui/DatePicker.vue";
-import { extractApiErrorMessage, patternsService } from "../api";
+import { extractApiErrorMessage, patternsService, tasksService } from "../api";
 import { useTasksStore } from "../stores/tasks";
 import { downloadTextFile } from "../utils/download";
 import {
@@ -77,37 +77,56 @@ const speakersLabel = computed(() => {
   return `${n} ${word}`;
 });
 
-// ---- эмулируемый плеер: бекенд пока не отдаёт URL аудио ----
+// ---- Аудиоплеер: presigned URL берём отдельным запросом к
+// GET /api/v1/tasks/{taskID}/audio. Реальное воспроизведение делает
+// нативный <audio>; setInterval-эмуляция больше не нужна.
+const audioEl = ref<HTMLAudioElement | null>(null);
+const audioUrl = ref<string | null>(null);
+const audioLoadError = ref<string | null>(null);
+const isAudioReady = ref(false);
 const isPlaying = ref(false);
 const currentTime = ref(0);
-let playbackTimer: ReturnType<typeof setInterval> | null = null;
+const audioDuration = ref(0);
+let didRetryAfterExpire = false;
 
-const totalSeconds = computed(() => task.value?.duration_seconds ?? 0);
+const totalSeconds = computed(() => {
+  if (audioDuration.value > 0) return audioDuration.value;
+  return task.value?.duration_seconds ?? 0;
+});
 const formattedCurrent = computed(() => formatHms(currentTime.value));
 const formattedTotal = computed(() => formatHms(totalSeconds.value));
 const progressPercent = computed(() => {
   if (totalSeconds.value <= 0) return 0;
   return Math.min(100, (currentTime.value / totalSeconds.value) * 100);
 });
+const canPlay = computed(() => isAudioReady.value && totalSeconds.value > 0);
+
+async function loadAudioUrl(taskId: string): Promise<void> {
+  audioLoadError.value = null;
+  try {
+    const { url } = await tasksService.getAudioUrl(taskId);
+    audioUrl.value = url;
+    didRetryAfterExpire = false;
+  } catch (err: unknown) {
+    audioUrl.value = null;
+    isAudioReady.value = false;
+    audioLoadError.value = extractApiErrorMessage(
+      err,
+      "Аудиозапись недоступна",
+    );
+  }
+}
 
 const togglePlayback = () => {
-  if (totalSeconds.value <= 0) return;
-  isPlaying.value = !isPlaying.value;
-  if (isPlaying.value) {
-    if (playbackTimer !== null) clearInterval(playbackTimer);
-    playbackTimer = setInterval(() => {
-      currentTime.value = Math.min(totalSeconds.value, currentTime.value + 1);
-      if (currentTime.value >= totalSeconds.value) {
-        isPlaying.value = false;
-        if (playbackTimer !== null) {
-          clearInterval(playbackTimer);
-          playbackTimer = null;
-        }
-      }
-    }, 1000);
-  } else if (playbackTimer !== null) {
-    clearInterval(playbackTimer);
-    playbackTimer = null;
+  const el = audioEl.value;
+  if (!el || !canPlay.value) return;
+  if (el.paused) {
+    void el.play().catch((err) => {
+      audioLoadError.value =
+        err instanceof Error ? err.message : "Не удалось воспроизвести аудио";
+    });
+  } else {
+    el.pause();
   }
 };
 
@@ -116,7 +135,52 @@ const handleScrub = (event: MouseEvent) => {
   const target = event.currentTarget as HTMLDivElement;
   const rect = target.getBoundingClientRect();
   const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  currentTime.value = Math.round(ratio * totalSeconds.value);
+  const next = ratio * totalSeconds.value;
+  currentTime.value = next;
+  if (audioEl.value && Number.isFinite(audioEl.value.duration)) {
+    audioEl.value.currentTime = next;
+  }
+};
+
+const onAudioLoaded = () => {
+  const el = audioEl.value;
+  if (!el) return;
+  if (Number.isFinite(el.duration) && el.duration > 0) {
+    audioDuration.value = el.duration;
+  }
+  isAudioReady.value = true;
+};
+
+const onAudioTimeUpdate = () => {
+  if (!audioEl.value) return;
+  currentTime.value = audioEl.value.currentTime;
+};
+
+const onAudioPlay = () => {
+  isPlaying.value = true;
+};
+
+const onAudioPause = () => {
+  isPlaying.value = false;
+};
+
+const onAudioEnded = () => {
+  isPlaying.value = false;
+  currentTime.value = totalSeconds.value;
+};
+
+const onAudioError = async () => {
+  // Возможен случай: presigned истёк за время простоя — пробуем один раз
+  // перезапросить ссылку. Если и это не помогло, показываем сообщение.
+  if (!task.value) return;
+  if (!didRetryAfterExpire) {
+    didRetryAfterExpire = true;
+    isAudioReady.value = false;
+    await loadAudioUrl(task.value.task_id);
+    return;
+  }
+  audioLoadError.value = "Не удалось загрузить аудиозапись";
+  isAudioReady.value = false;
 };
 
 const safeFileBase = (name: string | undefined, fallback: string) => {
@@ -219,6 +283,10 @@ onMounted(async () => {
 
     isLoading.value = false;
 
+    // Параллельно: подгружаем шаблон (если есть) и presigned URL аудио.
+    // Ошибки в обоих случаях не критичны — просто скрываем соответствующий UI.
+    void loadAudioUrl(fetched.task_id);
+
     if (fetched.pattern_id) {
       try {
         const pattern = await patternsService.getPatternById(fetched.pattern_id);
@@ -232,6 +300,15 @@ onMounted(async () => {
       tasksStore.currentError ??
       (err instanceof Error ? err.message : "Не удалось загрузить запись");
     isLoading.value = false;
+  }
+});
+
+onUnmounted(() => {
+  // Если пользователь уходит со страницы во время воспроизведения — глушим звук.
+  const el = audioEl.value;
+  if (el) {
+    el.pause();
+    el.src = "";
   }
 });
 </script>
@@ -271,11 +348,32 @@ onMounted(async () => {
           </div>
 
           <div class="flex items-center gap-3">
+            <audio
+              v-if="audioUrl"
+              ref="audioEl"
+              :src="audioUrl"
+              preload="metadata"
+              class="hidden"
+              @loadedmetadata="onAudioLoaded"
+              @timeupdate="onAudioTimeUpdate"
+              @play="onAudioPlay"
+              @pause="onAudioPause"
+              @ended="onAudioEnded"
+              @error="onAudioError"
+            />
             <button
               type="button"
-              :disabled="totalSeconds <= 0"
+              :disabled="!canPlay"
               class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-dark dark:hover:bg-gray-200"
-              :title="isPlaying ? 'Пауза' : 'Воспроизвести'"
+              :title="
+                audioLoadError
+                  ? audioLoadError
+                  : !audioUrl
+                    ? 'Загрузка аудио…'
+                    : isPlaying
+                      ? 'Пауза'
+                      : 'Воспроизвести'
+              "
               @click="togglePlayback"
             >
               <Play v-if="!isPlaying" :size="18" />

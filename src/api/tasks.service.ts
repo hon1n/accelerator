@@ -3,6 +3,7 @@ import { cleanPayload } from "./utils";
 import { mockTasksService, USE_MOCK_TASKS } from "./tasks.mock";
 import type {
   EditTaskRequest,
+  TaskAudioUrlResponse,
   TaskDto,
   TaskStatusResponse,
   TasksListResponse,
@@ -72,6 +73,17 @@ const realTasksService = {
   /** DELETE /api/v1/tasks/{taskID} */
   remove(taskId: string): Promise<void> {
     return api.delete<void>(`${TASKS}/${taskId}`).then(() => undefined);
+  },
+
+  /**
+   * GET /api/v1/tasks/{taskID}/audio — presigned URL на исходный
+   * аудиофайл задачи (объект `uploads/{groupID}/{taskID}/audio.wav` в MinIO).
+   * Ссылка временная: при истечении плеер запросит её заново.
+   */
+  getAudioUrl(taskId: string): Promise<TaskAudioUrlResponse> {
+    return api
+      .get<TaskAudioUrlResponse>(`${TASKS}/${taskId}/audio`)
+      .then((r) => r.data);
   },
 };
 
