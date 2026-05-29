@@ -8,6 +8,7 @@ import {
   Clock,
   Loader2,
   Users,
+  Hourglass
 } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
@@ -335,8 +336,8 @@ const isKnownPipelineStatus = computed(() => {
         <p class="text-red-600 dark:text-red-400">{{ error }}</p>
       </div>
 
-      <div v-else class="min-h-0 flex-1 space-y-6 overflow-y-auto pr-1">
-        <div class="grid gap-4 sm:grid-cols-3">
+      <template v-else>
+        <div class="mb-6 grid shrink-0 gap-4 sm:grid-cols-3">
           <Card padding="md">
             <div class="flex items-center gap-3">
               <div
@@ -358,7 +359,9 @@ const isKnownPipelineStatus = computed(() => {
               <div
                 class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400"
               >
-                <Loader2 :size="20" :class="{ 'animate-spin': isActiveStage }" />
+                <span class="hourglass-flip inline-flex">
+                  <Hourglass :size="20" class="animate-hourglass-flip" />
+                </span>
               </div>
               <div>
                 <p class="text-xs text-gray-500 dark:text-gray-400">ДЛИТЕЛЬНОСТЬ АУДИОЗАПИСИ</p>
@@ -404,94 +407,84 @@ const isKnownPipelineStatus = computed(() => {
           </Card>
         </div>
 
-        <Card v-if="isKnownPipelineStatus" padding="lg">
-          <h2 class="mb-6 text-lg font-semibold text-gray-900 dark:text-white">
-            Этапы обработки
-          </h2>
+        <div
+          v-if="isKnownPipelineStatus"
+          class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1"
+        >
+          <div v-for="stage in stages" :key="stage.status" class="relative">
+            <div
+              :class="[
+                'rounded-lg border p-4 transition-all',
+                {
+                  'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20':
+                    stage.state === 'completed',
+                  'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20':
+                    stage.state === 'in_progress',
+                  'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20':
+                    stage.state === 'error',
+                  'border-gray-200 bg-white dark:border-dark-border dark:bg-dark-card':
+                    stage.state === 'pending',
+                },
+              ]"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex items-start gap-3">
+                  <div
+                    :class="[
+                      'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+                      {
+                        'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400':
+                          stage.state === 'completed',
+                        'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400':
+                          stage.state === 'in_progress',
+                        'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400':
+                          stage.state === 'error',
+                        'bg-gray-100 text-gray-400 dark:bg-dark-elevated dark:text-gray-500':
+                          stage.state === 'pending',
+                      },
+                    ]"
+                  >
+                    <component
+                      :is="getStageIcon(stage.state)"
+                      :size="20"
+                      :class="{ 'animate-spin': stage.state === 'in_progress' }"
+                    />
+                  </div>
 
-          <div class="space-y-4">
-            <div v-for="(stage, index) in stages" :key="stage.status" class="relative">
-              <div
-                :class="[
-                  'rounded-lg border p-4 transition-all',
-                  {
-                    'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20':
-                      stage.state === 'completed',
-                    'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20':
-                      stage.state === 'in_progress',
-                    'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20':
-                      stage.state === 'error',
-                    'border-gray-200 bg-white dark:border-dark-border dark:bg-dark-card':
-                      stage.state === 'pending',
-                  },
-                ]"
-              >
-                <div class="flex items-start justify-between gap-4">
-                  <div class="flex items-start gap-3">
-                    <div
+                  <div class="flex-1">
+                    <h3 class="font-medium text-gray-900 dark:text-white">
+                      {{ stage.name }}
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      {{ stage.description }}
+                    </p>
+                    <p
                       :class="[
-                        'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+                        'mt-2 text-xs font-medium',
                         {
-                          'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400':
+                          'text-green-700 dark:text-green-400':
                             stage.state === 'completed',
-                          'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400':
+                          'text-yellow-700 dark:text-yellow-400':
                             stage.state === 'in_progress',
-                          'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400':
-                            stage.state === 'error',
-                          'bg-gray-100 text-gray-400 dark:bg-dark-elevated dark:text-gray-500':
+                          'text-red-700 dark:text-red-400': stage.state === 'error',
+                          'text-gray-500 dark:text-gray-400':
                             stage.state === 'pending',
                         },
                       ]"
                     >
-                      <component
-                        :is="getStageIcon(stage.state)"
-                        :size="20"
-                        :class="{ 'animate-spin': stage.state === 'in_progress' }"
-                      />
-                    </div>
-
-                    <div class="flex-1">
-                      <h3 class="font-medium text-gray-900 dark:text-white">
-                        {{ stage.name }}
-                      </h3>
-                      <p
-                        class="mt-1 text-sm text-gray-600 dark:text-gray-400"
-                      >
-                        {{ stage.description }}
-                      </p>
-                      <p
-                        :class="[
-                          'mt-2 text-xs font-medium',
-                          {
-                            'text-green-700 dark:text-green-400':
-                              stage.state === 'completed',
-                            'text-yellow-700 dark:text-yellow-400':
-                              stage.state === 'in_progress',
-                            'text-red-700 dark:text-red-400': stage.state === 'error',
-                            'text-gray-500 dark:text-gray-400':
-                              stage.state === 'pending',
-                          },
-                        ]"
-                      >
-                        {{ stage.detail }}
-                      </p>
-                    </div>
+                      {{ stage.detail }}
+                    </p>
                   </div>
-
-                  <Badge :variant="getStageVariant(stage.state)" size="sm">
-                    {{ getStageLabel(stage.state) }}
-                  </Badge>
                 </div>
-              </div>
 
-              <!-- <div
-                v-if="index < stages.length - 1"
-                class="ml-5 h-4 w-0.5 bg-gray-200 dark:bg-dark-border"
-              /> -->
+                <Badge :variant="getStageVariant(stage.state)" size="sm">
+                  {{ getStageLabel(stage.state) }}
+                </Badge>
+              </div>
             </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </template>
     </main>
   </div>
 </template>

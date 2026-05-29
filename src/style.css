@@ -40,6 +40,30 @@
   --color-dark-elevated: oklch(22% 0.000 0);
   --color-dark-border: oklch(28% 0.000 0);
   --font-inter: "Inter", sans-serif;
+
+  --animate-hourglass-flip: hourglass-flip 3s ease-in-out infinite;
+
+  @keyframes hourglass-flip {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    35% {
+      transform: rotate(0deg);
+    }
+
+    50% {
+      transform: rotate(180deg);
+    }
+
+    85% {
+      transform: rotate(180deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

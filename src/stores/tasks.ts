@@ -185,6 +185,15 @@ export const useTasksStore = defineStore("tasks", () => {
     const tick = async (): Promise<void> => {
       if (pollAbort) return;
       try {
+        // Запоминаем статус до запроса, чтобы поймать момент перехода между
+        // этапами конвейера. На таких переходах сервер успевает дозаполнить
+        // `duration_seconds` (после загрузки в S3) и поля времени —
+        // подтянем полные данные через GET /tasks/{taskID}, иначе они
+        // останутся нулевыми, потому что /status возвращает только статус.
+        const prevStatus = currentTask.value?.task_id === taskId
+          ? currentTask.value?.status ?? null
+          : null;
+
         const status = await fetchStatus(taskId);
         if (pollAbort) return;
         options.onUpdate?.(status);
@@ -199,6 +208,15 @@ export const useTasksStore = defineStore("tasks", () => {
         if (isErrorStatus(status.status)) {
           options.onError?.(new Error("Обработка завершилась с ошибкой"));
           return;
+        }
+
+        if (prevStatus !== null && prevStatus !== status.status) {
+          try {
+            await fetchTask(taskId);
+          } catch {
+            // Не критично: на следующем тике попробуем снова.
+          }
+          if (pollAbort) return;
         }
 
         pollTimer = setTimeout(() => void tick(), interval);
