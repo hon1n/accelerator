@@ -167,11 +167,6 @@ const isInQueue = computed(() => {
   const s = currentStatus.value;
   return s ? isPending(s) : false;
 });
-const isActiveStage = computed(() => {
-  const s = currentStatus.value;
-  return s ? isProcessing(s) : false;
-});
-
 const taskDurationSeconds = computed(
   () => tasksStore.currentTask?.duration_seconds ?? 0,
 );
