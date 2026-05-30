@@ -455,10 +455,10 @@ useAutoRefresh(async () => {
       <div class="mb-6 flex shrink-0 gap-2">
         <button
           :class="[
-            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+            'cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'global'
               ? 'bg-blue-600 text-white dark:bg-white dark:text-dark'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated cursor-pointer',
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated',
           ]"
           @click="handleTabChange('global')"
         >
@@ -466,10 +466,10 @@ useAutoRefresh(async () => {
         </button>
         <button
           :class="[
-            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+            'cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'group'
               ? 'bg-blue-600 text-white dark:bg-white dark:text-dark'
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated cursor-pointer',
+              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-dark-card dark:text-gray-300 dark:hover:bg-dark-elevated',
           ]"
           @click="handleTabChange('group')"
         >
@@ -511,7 +511,7 @@ useAutoRefresh(async () => {
               v-for="pattern in displayedPatterns"
               :key="pattern.pattern_id"
               :class="[
-                'w-full rounded-lg p-3 text-left transition-colors',
+                'w-full cursor-pointer rounded-lg p-3 text-left transition-colors',
                 selectedPatternId === pattern.pattern_id
                   ? 'bg-blue-50 dark:bg-white/10'
                   : 'hover:bg-gray-50 dark:hover:bg-dark-elevated',
@@ -602,20 +602,20 @@ useAutoRefresh(async () => {
                     <div class="flex items-center gap-1">
                       <button
                         :disabled="index === form.sections.length - 1"
-                        class="rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"
+                        class="cursor-pointer rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"
                         @click="moveSectionDown(index)"
                       >
                         <ArrowDown :size="16" />
                       </button>
                       <button
                         :disabled="index === 0"
-                        class="rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"
+                        class="cursor-pointer rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"
                         @click="moveSectionUp(index)"
                       >
                         <ArrowUp :size="16" />
                       </button>
                       <button
-                        class="rounded border border-gray-300 p-2 text-red-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-dark-border dark:hover:bg-red-900/20"
+                        class="cursor-pointer rounded border border-gray-300 p-2 text-red-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-dark-border dark:hover:bg-red-900/20"
                         @click="removeSection(index)"
                       >
                         <Trash2 :size="16" />
@@ -668,7 +668,6 @@ useAutoRefresh(async () => {
       </div>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button variant="primary" @click="handleDelete" :is-loading="patternsStore.isMutating">Удалить</Button>
       </template>
     </Modal>

@@ -149,7 +149,7 @@ const handleLogout = () => {
         <!-- Logout Button -->
         <button
           @click="handleLogout"
-          class="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-elevated dark:hover:text-white"
+          class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-elevated dark:hover:text-white"
         >
           <LogOut :size="18" />
         </button>

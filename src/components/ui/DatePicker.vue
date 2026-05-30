@@ -306,6 +306,7 @@ const triggerClass = computed(() =>
     fieldControlClass({ error: props.error, disabled: props.disabled }),
     fieldControlSizeClass,
     "flex items-center gap-2 text-left",
+    !props.disabled ? "cursor-pointer" : "",
     !displayValue.value ? "text-gray-400 dark:text-gray-500" : "",
   ]
     .filter(Boolean)
@@ -362,7 +363,7 @@ const triggerClass = computed(() =>
           <div class="mb-2 flex items-center justify-between gap-2">
             <button
               type="button"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
+              class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
               @click="prev"
             >
               <ChevronLeft :size="16" />
@@ -370,7 +371,7 @@ const triggerClass = computed(() =>
 
             <button
               type="button"
-              class="rounded-lg px-3 py-1 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100 dark:text-white dark:hover:bg-white/10"
+              class="cursor-pointer rounded-lg px-3 py-1 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100 dark:text-white dark:hover:bg-white/10"
               @click="toggleHeader"
             >
               <template v-if="view === 'days'">{{ monthYearLabel }}</template>
@@ -380,7 +381,7 @@ const triggerClass = computed(() =>
 
             <button
               type="button"
-              class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
+              class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
               @click="next"
             >
               <ChevronRight :size="16" />
@@ -411,7 +412,7 @@ const triggerClass = computed(() =>
                 :disabled="cell.disabled"
                 :class="[
                   'relative mx-auto flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors',
-                  cell.disabled ? 'cursor-not-allowed opacity-40' : '',
+                  cell.disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
                   cell.isSelected
                     ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-600 dark:bg-white dark:text-dark dark:hover:bg-white'
                     : !cell.inMonth
@@ -439,7 +440,7 @@ const triggerClass = computed(() =>
               :key="m"
               type="button"
               :class="[
-                'rounded-lg px-2 py-2 text-sm font-medium transition-colors',
+                'cursor-pointer rounded-lg px-2 py-2 text-sm font-medium transition-colors',
                 i === cursor.getMonth() &&
                 selectedDate &&
                 selectedDate.getFullYear() === cursor.getFullYear()
@@ -459,7 +460,7 @@ const triggerClass = computed(() =>
               :key="i"
               type="button"
               :class="[
-                'rounded-lg px-2 py-2 text-sm font-medium transition-colors',
+                'cursor-pointer rounded-lg px-2 py-2 text-sm font-medium transition-colors',
                 yearGridStart + i - 1 === cursor.getFullYear()
                   ? 'bg-blue-600 text-white dark:bg-white dark:text-dark'
                   : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10',
@@ -476,14 +477,14 @@ const triggerClass = computed(() =>
           >
             <button
               type="button"
-              class="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:text-white dark:hover:bg-white/10"
+              class="cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:text-white dark:hover:bg-white/10"
               @click="pickToday"
             >
               Сегодня
             </button>
             <button
               type="button"
-              class="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
+              class="cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10"
               @click="clear"
             >
               Очистить

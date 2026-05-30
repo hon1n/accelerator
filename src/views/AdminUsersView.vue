@@ -231,6 +231,7 @@ const copyPassword = async () => {
 };
 
 const passwordCopied = ref(false);
+const newPasswordCopied = ref(false);
 
 const handleCopyPassword = async () => {
   await copyPassword();
@@ -238,6 +239,16 @@ const handleCopyPassword = async () => {
   setTimeout(() => {
     passwordCopied.value = false;
   }, 2000);
+};
+
+const handleCopyNewPassword = async () => {
+  if (newPassword.value) {
+    await navigator.clipboard.writeText(newPassword.value);
+    newPasswordCopied.value = true;
+    setTimeout(() => {
+      newPasswordCopied.value = false;
+    }, 2000);
+  }
 };
 
 const handleEditUser = async () => {
@@ -520,19 +531,19 @@ useAutoRefresh(async () => {
                 <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                   <div class="flex items-center justify-end gap-2">
                     <button
-                      class="text-blue-600 transition-colors hover:text-blue-900 dark:text-gray-400 dark:hover:text-white"
+                      class="cursor-pointer text-blue-600 transition-colors hover:text-blue-900 dark:text-gray-400 dark:hover:text-white"
                       @click="openEditModal(user.user_id)"
                     >
                       <Edit :size="18" />
                     </button>
                     <button
-                      class="text-orange-600 transition-colors hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                      class="cursor-pointer text-orange-600 transition-colors hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
                       @click="openResetPasswordModal(user.user_id)"
                     >
                       <RefreshCw :size="18" />
                     </button>
                     <button
-                      class="text-red-600 transition-colors hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      class="cursor-pointer text-red-600 transition-colors hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                       @click="openDeleteModal(user.user_id)"
                     >
                       <Trash2 :size="18" />
@@ -558,7 +569,7 @@ useAutoRefresh(async () => {
     </main>
 
     <!-- Create User Modal -->
-    <Modal v-model="showCreateModal" title="Добавить пользователя" size="md" :closeOnClickOutside="false">
+    <Modal v-model="showCreateModal" title="Добавить пользователя" size="md" :close-on-click-outside="false">
       <form class="space-y-4">
         <FormError :message="createError" />
         <Input v-model="createForm.login" label="Email" type="email" placeholder="user@example.com" />
@@ -574,15 +585,15 @@ useAutoRefresh(async () => {
         <p class="text-sm text-gray-500 dark:text-gray-400">
           Скопируйте пароль и передайте пользователю. После первого входа пользователь должен будет сменить пароль.
         </p>
-        <div class="flex items-center gap-2">
-          <div
-            class="flex-1 rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-sm dark:border-dark-border dark:bg-dark-elevated"
-          >
+        <div
+          class="relative flex items-center rounded-lg border border-gray-200 bg-gray-50 font-mono text-sm dark:border-dark-border dark:bg-dark-elevated"
+        >
+          <div class="flex-1 break-all p-4 pr-14">
             {{ createdUserPassword }}
           </div>
           <button
             @click="handleCopyPassword"
-            class="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-100 dark:border-dark-border dark:text-gray-400 dark:hover:bg-dark-elevated"
+            class="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-card"
             :title="passwordCopied ? 'Скопировано' : 'Копировать'"
           >
             <Check v-if="passwordCopied" :size="18" class="text-green-500" />
@@ -592,7 +603,6 @@ useAutoRefresh(async () => {
       </div>
 
       <template #footer>
-        <Button variant="outline" @click="closeCreateModal">Отмена</Button>
         <Button @click="handleCreateUser" :is-loading="usersStore.isMutating" :disabled="!!createdUserPassword">
           {{ createdUserPassword ? 'Создано' : 'Создать' }}
         </Button>
@@ -600,7 +610,7 @@ useAutoRefresh(async () => {
     </Modal>
 
     <!-- Edit User Modal -->
-    <Modal v-model="showEditModal" title="Редактировать пользователя" size="md">
+    <Modal v-model="showEditModal" title="Редактировать пользователя" size="md" :close-on-click-outside="false">
       <form @submit.prevent="handleEditUser" class="space-y-4">
         <FormError :message="editError" />
         <Input v-model="editForm.login" label="Email" type="email" />
@@ -610,7 +620,6 @@ useAutoRefresh(async () => {
       </form>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleEditUser" :is-loading="usersStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -625,7 +634,6 @@ useAutoRefresh(async () => {
       </div>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleDeleteUser" :is-loading="usersStore.isMutating">Удалить</Button>
       </template>
     </Modal>
@@ -643,14 +651,23 @@ useAutoRefresh(async () => {
           Новый пароль сгенерирован. Скопируйте его и передайте пользователю.
         </p>
         <div
-          class="rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-sm dark:border-dark-border dark:bg-dark-elevated"
+          class="relative flex items-center rounded-lg border border-gray-200 bg-gray-50 font-mono text-sm dark:border-dark-border dark:bg-dark-elevated"
         >
-          {{ newPassword }}
+          <div class="flex-1 break-all p-4 pr-14">
+            {{ newPassword }}
+          </div>
+          <button
+            @click="handleCopyNewPassword"
+            class="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-card"
+            :title="newPasswordCopied ? 'Скопировано' : 'Копировать'"
+          >
+            <Check v-if="newPasswordCopied" :size="18" class="text-green-500" />
+            <Copy v-else :size="18" />
+          </button>
         </div>
       </div>
 
       <template #footer="{ close }">
-        <Button v-if="!newPassword" variant="outline" @click="close">Отмена</Button>
         <Button v-if="!newPassword" @click="handleResetPassword" :is-loading="usersStore.isMutating">Сбросить</Button>
         <Button v-else @click="close">Закрыть</Button>
       </template>

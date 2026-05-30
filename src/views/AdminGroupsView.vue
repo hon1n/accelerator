@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { Plus, Search, Edit, Trash2, Users } from "@lucide/vue";
+import { Plus, Search, Edit, Trash2, Users, Calendar, Crown, UserPlus, ShieldCheck } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Button from "../components/ui/Button.vue";
@@ -9,12 +9,12 @@ import Input from "../components/ui/Input.vue";
 import Select from "../components/ui/Select.vue";
 import Modal from "../components/ui/Modal.vue";
 import Spinner from "../components/ui/Spinner.vue";
-import Badge from "../components/ui/Badge.vue";
 import FormError from "../components/ui/FormError.vue";
 import { useGroupsStore, groupColorClass, groupPrefix } from "../stores/groups";
 import { useUsersStore } from "../stores/users";
 import { extractApiErrorMessage } from "../api";
 import { getInitials } from "../utils/initials.ts"
+import { formatMeetingDate } from "../utils/taskStatus";
 import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const route = useRoute();
@@ -69,6 +69,12 @@ const adminUsers = computed(() =>
   usersStore.users.filter((u) => u.role === "admin"),
 );
 
+const ownerNameById = (ownerId: string): string | null => {
+  if (!ownerId) return null;
+  const owner = usersStore.users.find((u) => u.user_id === ownerId);
+  return owner?.full_name ?? null;
+};
+
 const adminOwnerOptions = computed(() =>
   adminUsers.value.map((user) => ({
     value: user.user_id,
@@ -76,22 +82,52 @@ const adminOwnerOptions = computed(() =>
   })),
 );
 
-const addMemberSelection = ref("");
+const memberSearchQuery = ref("");
+const pendingMemberId = ref<string | null>(null);
 
-const memberAddOptions = computed(() => {
-  const members = groupsStore.activeGroupDetails?.members ?? [];
+const roleLabels: Record<string, string> = {
+  creator: "Создатель",
+  admin: "Администратор",
+  user: "Участник",
+};
+
+const roleBadgeClass = (role: string): string => {
+  switch (role) {
+    case "creator":
+      return "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300";
+    case "admin":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
+    default:
+      return "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300";
+  }
+};
+
+const currentMembers = computed(() => groupsStore.activeGroupDetails?.members ?? []);
+
+const candidateUsers = computed(() => {
+  const members = currentMembers.value;
+  const query = memberSearchQuery.value.trim().toLowerCase();
+
   return availableUsers.value
     .filter((user) => !members.some((member) => member.user_id === user.user_id))
-    .map((user) => ({
-      value: user.user_id,
-      label: user.full_name,
-    }));
+    .filter((user) => {
+      if (!query) return true;
+      return (
+        user.full_name.toLowerCase().includes(query) ||
+        user.position.toLowerCase().includes(query) ||
+        user.login.toLowerCase().includes(query)
+      );
+    });
 });
 
-const onAddMemberSelect = async (userId: string) => {
-  if (!userId) return;
-  await handleAddMember(userId);
-  addMemberSelection.value = "";
+const onAddCandidate = async (userId: string) => {
+  if (!userId || pendingMemberId.value) return;
+  pendingMemberId.value = userId;
+  try {
+    await handleAddMember(userId);
+  } finally {
+    pendingMemberId.value = null;
+  }
 };
 
 const handleCreateGroup = async () => {
@@ -211,6 +247,7 @@ const openDeleteModal = (groupId: string) => {
 const openMembersModal = async (groupId: string) => {
   selectedGroupId.value = groupId;
   membersError.value = null;
+  memberSearchQuery.value = "";
   await groupsStore.fetchGroupMembers(groupId);
   showMembersModal.value = true;
 };
@@ -288,44 +325,64 @@ useAutoRefresh(async () => {
           </p>
         </div>
 
-        <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-else class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <Card
           v-for="group in filteredGroups"
           :key="group.group_id"
-          padding="lg"
-          hover
-          class="cursor-pointer"
+          padding="none"
+          class="flex flex-col overflow-hidden"
         >
-          <div class="flex items-start justify-between">
-            <div class="flex items-start gap-3">
+          <!-- Clickable body -->
+          <button
+            type="button"
+            class="flex flex-1 flex-col items-stretch p-5 text-left focus:outline-none"
+          >
+            <div class="flex items-center gap-4">
               <div
                 :class="[
-                  'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-lg font-bold',
+                  'flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl text-xl font-bold ring-1 ring-inset ring-black/5 dark:ring-white/10',
                   groupColorClass(group.group_id),
                 ]"
               >
                 {{ groupPrefix(group.name) }}
               </div>
-              <div class="flex-1 min-w-0">
-                <h3 class="truncate font-semibold text-gray-900 dark:text-white">
+              <div class="min-w-0 flex-1">
+                <h3 class="truncate text-base font-semibold text-gray-900 dark:text-white">
                   {{ group.name }}
                 </h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                  {{ group.description }}
-                </p>
-                <div class="mt-3 flex items-center gap-2">
-                  <Badge variant="default" size="sm">
-                    <Users :size="12" />
-                    {{ group.member_count }} участников
-                  </Badge>
+                <div class="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <Users :size="14" class="flex-shrink-0" />
+                  <span>{{ group.member_count ?? 0 }} участников</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="mt-4 flex items-center gap-2 border-t border-gray-200 pt-4 dark:border-dark-border">
+            <p
+              class="mt-4 line-clamp-2 min-h-[2.5rem] text-sm leading-relaxed text-gray-500 dark:text-gray-400"
+            >
+              {{ group.description || "Без описания" }}
+            </p>
+
+            <div class="mt-auto flex flex-col gap-2 pt-4 text-xs text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-2">
+                <Crown :size="14" class="flex-shrink-0 text-amber-500 dark:text-amber-400" />
+                <span class="truncate">
+                  {{ ownerNameById(group.owner_id) || "Владелец не назначен" }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <Calendar :size="14" class="flex-shrink-0" />
+                <span>Создана {{ formatMeetingDate(group.created_at) }}</span>
+              </div>
+            </div>
+          </button>
+
+          <!-- Actions -->
+          <div
+            class="flex items-center gap-2 border-t border-gray-100 bg-gray-50/60 px-5 py-3 dark:border-dark-border dark:bg-white/[0.02]"
+          >
             <Button
-              variant="outline"
+              variant="primary"
               size="sm"
               class="flex-1"
               @click="openMembersModal(group.group_id)"
@@ -334,15 +391,21 @@ useAutoRefresh(async () => {
               Участники
             </Button>
             <Button
+              v-if="group.can_edit"
               variant="outline"
               size="sm"
+              title="Редактировать"
+              class="!px-1.5"
               @click="openEditModal(group.group_id)"
             >
               <Edit :size="16" />
             </Button>
             <Button
+              v-if="group.can_delete"
               variant="outline"
               size="sm"
+              title="Удалить"
+              class="!px-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
               @click="openDeleteModal(group.group_id)"
             >
               <Trash2 :size="16" />
@@ -354,7 +417,7 @@ useAutoRefresh(async () => {
     </main>
 
     <!-- Create Group Modal -->
-    <Modal v-model="showCreateModal" title="Создать группу" size="md">
+    <Modal v-model="showCreateModal" title="Создать группу" size="md" :close-on-click-outside="false">
       <form @submit.prevent="handleCreateGroup" class="space-y-4">
         <FormError :message="createError" />
         <div>
@@ -379,13 +442,12 @@ useAutoRefresh(async () => {
       </form>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleCreateGroup" :is-loading="groupsStore.isMutating">Создать</Button>
       </template>
     </Modal>
 
     <!-- Edit Group Modal -->
-    <Modal v-model="showEditModal" title="Редактировать группу" size="md">
+    <Modal v-model="showEditModal" title="Редактировать группу" size="md" :close-on-click-outside="false">
       <form @submit.prevent="handleEditGroup" class="space-y-4">
         <FormError :message="editError" />
         <div>
@@ -407,7 +469,6 @@ useAutoRefresh(async () => {
       </form>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleEditGroup" :is-loading="groupsStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -422,64 +483,191 @@ useAutoRefresh(async () => {
       </div>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleDeleteGroup" :is-loading="groupsStore.isMutating">Удалить</Button>
       </template>
     </Modal>
 
     <!-- Members Modal -->
-    <Modal v-model="showMembersModal" :title="`Участники: ${selectedGroup?.name}`" size="lg">
-      <div v-if="groupsStore.isMembersLoading" class="flex items-center justify-center py-8">
+    <Modal v-model="showMembersModal" size="lg" :close-on-click-outside="false">
+      <template #header>
+        <div class="flex min-w-0 items-center gap-3">
+          <div
+            v-if="selectedGroup"
+            :class="[
+              'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-lg font-bold ring-1 ring-inset ring-black/5 dark:ring-white/10',
+              groupColorClass(selectedGroup.group_id),
+            ]"
+          >
+            {{ groupPrefix(selectedGroup.name) }}
+          </div>
+          <div class="min-w-0">
+            <h3 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
+              {{ selectedGroup?.name || "Участники" }}
+            </h3>
+            <p class="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <Users :size="13" class="flex-shrink-0" />
+              {{ currentMembers.length }} участников
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="groupsStore.isMembersLoading" class="flex items-center justify-center py-12">
         <Spinner size="md" class="text-blue-600 dark:text-white" />
       </div>
 
-      <div v-else-if="groupsStore.activeGroupDetails" class="space-y-4">
+      <div v-else-if="groupsStore.activeGroupDetails" class="space-y-5">
         <FormError :message="membersError" />
-        <!-- Add Member -->
-        <Select
-          :model-value="addMemberSelection"
-          label="Добавить участника"
-          :options="memberAddOptions"
-          placeholder="Выберите пользователя"
-          @update:model-value="onAddMemberSelect"
-        />
+
+        <!-- Add Member Panel -->
+        <div
+          class="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-dark-border dark:bg-white/[0.02]"
+        >
+          <div class="mb-3 flex items-center gap-2">
+            <UserPlus :size="16" class="text-blue-600 dark:text-white" />
+            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+              Добавить участника
+            </h4>
+          </div>
+
+          <div class="relative">
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search :size="16" class="text-gray-400" />
+            </div>
+            <Input
+              v-model="memberSearchQuery"
+              placeholder="Поиск по имени, должности или логину..."
+              hide-label
+              class="pl-10"
+            />
+          </div>
+
+          <div class="mt-3 max-h-52 space-y-1.5 overflow-y-auto pr-1">
+            <button
+              v-for="user in candidateUsers"
+              :key="user.user_id"
+              type="button"
+              :disabled="pendingMemberId !== null"
+              class="cursor-pointer group flex w-full items-center gap-3 rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-gray-200 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-dark-border dark:hover:bg-white/5"
+              @click="onAddCandidate(user.user_id)"
+            >
+              <div
+                :class="[
+                  'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-inset ring-black/5 dark:ring-white/10',
+                  groupColorClass(user.user_id),
+                ]"
+              >
+                {{ getInitials(user.full_name) }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ user.full_name }}
+                </p>
+                <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {{ user.position || "Без должности" }}
+                </p>
+              </div>
+              <span
+                v-if="pendingMemberId === user.user_id"
+                class="flex-shrink-0"
+              >
+                <Spinner size="sm" class="text-blue-600 dark:text-white" />
+              </span>
+              <span
+                v-else
+                class="flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-white cursor-pointer"
+              >
+                <Plus :size="14" />
+                Добавить
+              </span>
+            </button>
+
+            <div
+              v-if="candidateUsers.length === 0"
+              class="py-6 text-center text-sm text-gray-400 dark:text-gray-500"
+            >
+              {{ memberSearchQuery ? "Никого не найдено" : "Все доступные пользователи уже в группе" }}
+            </div>
+          </div>
+        </div>
 
         <!-- Members List -->
-        <div class="space-y-2">
+        <div>
+          <h4 class="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            Состав группы
+          </h4>
+
           <div
-            v-for="member in groupsStore.activeGroupDetails.members"
-            :key="member.user_id"
-            class="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-dark-border"
+            v-if="currentMembers.length === 0"
+            class="rounded-xl border border-dashed border-gray-200 py-10 text-center dark:border-dark-border"
           >
-            <div class="flex items-center gap-3">
-              <div
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600 dark:bg-white/10 dark:text-white"
-              >
-                {{ getInitials(member.full_name)  }}
-              </div>
-              <div>
-                <p class="font-medium text-gray-900 dark:text-white">
-                  {{ member.full_name }}
-                </p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ member.position }}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              @click="handleRemoveMember(member.user_id)"
+            <Users :size="28" class="mx-auto text-gray-300 dark:text-gray-600" />
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Пока нет участников</p>
+          </div>
+
+          <div v-else class="space-y-2">
+            <div
+              v-for="member in currentMembers"
+              :key="member.user_id"
+              class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-3 transition-colors hover:border-gray-300 dark:border-dark-border dark:hover:border-gray-600"
             >
-              <Trash2 :size="16" />
-            </Button>
+              <div class="flex min-w-0 items-center gap-3">
+                <div
+                  :class="[
+                    'relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-1 ring-inset ring-black/5 dark:ring-white/10',
+                    groupColorClass(member.user_id),
+                  ]"
+                >
+                  {{ getInitials(member.full_name) }}
+                  <span
+                    v-if="member.user_id === groupsStore.activeGroupDetails.owner_id"
+                    class="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white ring-1 ring-black/5 dark:bg-dark-card dark:ring-white/10"
+                    title="Владелец группы"
+                  >
+                    <Crown :size="12" class="text-amber-500 dark:text-amber-400" />
+                  </span>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <p class="truncate font-medium text-gray-900 dark:text-white">
+                      {{ member.full_name }}
+                    </p>
+                    <span
+                      :class="[
+                        'hidden flex-shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium sm:inline-block',
+                        roleBadgeClass(member.role),
+                      ]"
+                    >
+                      {{ roleLabels[member.role] ?? member.role }}
+                    </span>
+                  </div>
+                  <p class="truncate text-sm text-gray-500 dark:text-gray-400">
+                    {{ member.position || "Без должности" }}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                v-if="member.user_id !== groupsStore.activeGroupDetails.owner_id"
+                variant="ghost"
+                size="sm"
+                title="Удалить из группы"
+                class="!px-2 !py-2 flex-shrink-0 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                @click="handleRemoveMember(member.user_id)"
+              >
+                <Trash2 :size="16" />
+              </Button>
+              <span
+                v-else
+                class="flex flex-shrink-0 items-center gap-1 px-2 text-xs font-medium text-amber-600 dark:text-amber-400"
+                title="Владельца нельзя удалить"
+              >
+                <ShieldCheck :size="14" />
+              </span>
+            </div>
           </div>
         </div>
       </div>
-
-      <template #footer="{ close }">
-        <Button @click="close">Закрыть</Button>
-      </template>
     </Modal>
   </div>
 </template>

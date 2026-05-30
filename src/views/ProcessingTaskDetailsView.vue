@@ -296,7 +296,7 @@ const isKnownPipelineStatus = computed(() => {
       <div class="mb-6 shrink-0">
         <button
           type="button"
-          class="mb-4 flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          class="mb-4 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
           @click="router.push({ name: 'Dashboard' })"
         >
           <ArrowLeft :size="16" />

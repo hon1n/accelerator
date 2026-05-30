@@ -116,7 +116,7 @@ const handleDelete = (event: MouseEvent) => {
             <button
               v-if="task.change_flag"
               type="button"
-              class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600 dark:hover:bg-dark-elevated dark:hover:text-red-400"
+              class="cursor-pointer rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600 dark:hover:bg-dark-elevated dark:hover:text-red-400"
               title="Удалить"
               @click="handleDelete"
             >

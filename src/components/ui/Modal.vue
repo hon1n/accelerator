@@ -84,7 +84,7 @@ onUnmounted(() => {
               </slot>
               <button
                 type="button"
-                class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-elevated dark:hover:text-white"
+                class="cursor-pointer rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-elevated dark:hover:text-white"
                 @click="close"
               >
                 <X :size="20" />

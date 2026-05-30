@@ -88,6 +88,7 @@ const triggerClass = computed(() =>
     fieldControlClass({ error: props.error, disabled: props.disabled }),
     fieldControlSizeClass,
     "flex items-center justify-between gap-2 text-left",
+    !props.disabled ? "cursor-pointer" : "",
     isPlaceholder.value ? "text-gray-400 dark:text-gray-500" : "",
   ]
     .filter(Boolean)

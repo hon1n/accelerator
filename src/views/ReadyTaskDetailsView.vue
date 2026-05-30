@@ -332,7 +332,7 @@ onUnmounted(() => {
       <template v-else-if="task">
         <button
           type="button"
-          class="mb-4 flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+          class="mb-4 flex shrink-0 cursor-pointer items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
           @click="router.push({ name: 'Dashboard' })"
         >
           <ArrowLeft :size="16" />
@@ -364,7 +364,7 @@ onUnmounted(() => {
             <button
               type="button"
               :disabled="!canPlay"
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-dark dark:hover:bg-gray-200"
+              class="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-dark dark:hover:bg-gray-200"
               :title="
                 audioLoadError
                   ? audioLoadError
@@ -535,7 +535,7 @@ onUnmounted(() => {
       </template>
     </main>
 
-    <Modal v-model="showEditModal" title="Редактировать запись" size="md">
+    <Modal v-model="showEditModal" title="Редактировать запись" size="md" :close-on-click-outside="false">
       <form @submit.prevent="handleSaveEdit" class="space-y-4">
         <FormError :message="editError" />
         <Input v-model="editForm.taskName" label="Название" />
@@ -544,7 +544,6 @@ onUnmounted(() => {
       </form>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleSaveEdit" :is-loading="tasksStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -558,7 +557,6 @@ onUnmounted(() => {
       </div>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="handleDelete" :is-loading="tasksStore.isMutating">Удалить</Button>
       </template>
     </Modal>

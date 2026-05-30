@@ -103,7 +103,7 @@ const handleSubmit = async () => {
             <Button :is-loading="isLoading" type="submit">Создать создателя</Button>
             <button
               type="button"
-              class="w-full text-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              class="w-full cursor-pointer text-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               @click="router.push({ name: 'Login' })"
             >
               Уже есть аккаунт? Войти

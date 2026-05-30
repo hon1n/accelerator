@@ -178,9 +178,9 @@ useAutoRefresh(async () => {
 
 <template>
   <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
-    <Header max-width="max-w-[1200px]" />
+    <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto flex w-full min-h-0 max-w-[1200px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -197,7 +197,7 @@ useAutoRefresh(async () => {
         >
           <template #trigger>
             <button
-              class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-border dark:bg-dark-card dark:text-gray-200 dark:hover:bg-dark-elevated"
+              class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-border dark:bg-dark-card dark:text-gray-200 dark:hover:bg-dark-elevated"
             >
               {{ groupsStore.activeGroup?.name || "Выберите группу" }}
               <ChevronDown :size="16" class="text-gray-400" />
@@ -209,7 +209,7 @@ useAutoRefresh(async () => {
               <button
                 v-for="group in groupsStore.groups"
                 :key="group.group_id"
-                class="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated"
+                class="flex w-full cursor-pointer items-center px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated"
                 :class="{
                   'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white':
                     groupsStore.activeGroupId === group.group_id,
@@ -313,7 +313,6 @@ useAutoRefresh(async () => {
       </div>
 
       <template #footer="{ close }">
-        <Button variant="outline" @click="close">Отмена</Button>
         <Button @click="confirmDelete" :is-loading="tasksStore.isMutating">Удалить</Button>
       </template>
     </Modal>

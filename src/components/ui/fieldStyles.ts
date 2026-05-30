@@ -58,4 +58,4 @@ export const fieldSelectMenuClass =
 export const fieldSelectMenuScrollClass = "max-h-60 overflow-y-auto";
 
 export const fieldSelectOptionClass =
-  "flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors duration-150";
+  "flex w-full cursor-pointer items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors duration-150";

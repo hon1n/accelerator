@@ -43,7 +43,7 @@ defineExpose({ close });
 
 <template>
   <div ref="dropdownRef" class="relative inline-block">
-    <div @click="toggle">
+    <div class="cursor-pointer" @click="toggle">
       <slot name="trigger" :is-open="isOpen" />
     </div>
 
