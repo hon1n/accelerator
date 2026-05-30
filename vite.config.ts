@@ -22,11 +22,28 @@ const corsOptions = {
   methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 };
 
+/**
+ * Заголовки безопасности, которые корректно работают только когда приходят
+ * настоящим HTTP-ответом (через <meta> их игнорирует браузер).
+ *
+ * - Content-Security-Policy: frame-ancestors 'none' — запрещаем встраивать
+ *   приложение в любой <iframe> (защита от clickjacking).
+ * - X-Frame-Options: DENY — то же самое для старых браузеров.
+ *
+ * В проде эти же заголовки должен отдавать reverse proxy / backend,
+ * который раздаёт собранный фронт.
+ */
+const securityHeaders: Record<string, string> = {
+  "Content-Security-Policy": "frame-ancestors 'none'",
+  "X-Frame-Options": "DENY",
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
     cors: corsOptions,
+    headers: securityHeaders,
     proxy: {
       "/api": {
         target: "http://localhost:8000",
@@ -36,5 +53,6 @@ export default defineConfig({
   },
   preview: {
     cors: corsOptions,
+    headers: securityHeaders,
   },
 });

@@ -139,7 +139,7 @@ const router = createRouter({
   },
 });
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
   document.title = (to.meta.title as string) || "Платформа протоколирования";
 
   const authStore = useAuthStore();
@@ -155,39 +155,33 @@ router.beforeEach(async (to, _from, next) => {
   const isChangePasswordRoute = to.name === "ChangePassword";
 
   if (requiresAuth && !isAuthenticated) {
-    next({ name: "Login", query: { redirect: to.fullPath } });
-    return;
+    return { name: "Login", query: { redirect: to.fullPath } };
   }
 
   if (isAuthenticated && authStore.requiresPasswordChange) {
     if (!isChangePasswordRoute) {
-      next({ name: "ChangePassword" });
-      return;
+      return { name: "ChangePassword" };
     }
-    next();
-    return;
+    return true;
   }
 
   if (isAuthenticated && isChangePasswordRoute && !authStore.requiresPasswordChange) {
-    next({ name: "Dashboard" });
-    return;
+    return { name: "Dashboard" };
   }
 
   if (guestOnly && isAuthenticated) {
-    next({ name: "Dashboard" });
-    return;
+    return { name: "Dashboard" };
   }
 
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
   if (requiresAdmin) {
     const userRole = authStore.role;
     if (userRole !== "admin" && userRole !== "creator") {
-      next({ name: "Dashboard" });
-      return;
+      return { name: "Dashboard" };
     }
   }
 
-  next();
+  return true;
 });
 
 export default router;
