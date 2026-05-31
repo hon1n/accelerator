@@ -10,7 +10,7 @@ const goHome = () => {
 </script>
 
 <template>
-  <main class="flex h-screen w-full items-center justify-center bg-white dark:bg-dark">
+  <main class="flex h-dvh w-full items-center justify-center bg-white dark:bg-dark">
     <div class="flex flex-col items-center gap-6 px-6 text-center">
       <h1 class="text-8xl font-bold text-gray-200 dark:text-gray-700">404</h1>
       <h2 class="text-2xl font-semibold text-black dark:text-white">Страница не найдена</h2>

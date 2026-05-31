@@ -35,7 +35,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <main class="flex h-screen w-full items-center justify-center overflow-hidden bg-white p-6 dark:bg-dark">
+  <main class="flex h-dvh w-full items-center justify-center overflow-hidden bg-white p-6 dark:bg-dark">
     <div class="w-full max-w-md">
       <div class="mb-6">
         <h1 class="mb-2 text-2xl font-semibold text-gray-900 dark:text-white">Смена пароля</h1>

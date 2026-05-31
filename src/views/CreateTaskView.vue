@@ -169,7 +169,7 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
+  <div class="flex h-dvh flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
     <main

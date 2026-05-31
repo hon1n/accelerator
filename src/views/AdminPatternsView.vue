@@ -531,7 +531,7 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
+  <div class="flex h-dvh flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
     <!-- Initial Loading State -->
@@ -541,16 +541,17 @@ useAutoRefresh(async () => {
 
     <main v-else class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex shrink-0 items-center justify-between">
-        <div>
+      <div class="mb-6 flex shrink-0 items-center justify-between gap-3">
+        <div class="min-w-0">
           <p class="text-sm text-gray-500 dark:text-gray-400">Шаблоны</p>
-          <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 class="mt-1 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
             Конструктор шаблонов
           </h1>
         </div>
-        <Button @click="handleNewPattern">
+        <Button class="shrink-0" @click="handleNewPattern">
           <Plus :size="18" />
-          Новый шаблон
+          <span class="hidden sm:inline">Новый шаблон</span>
+          <span class="sm:hidden">Создать</span>
         </Button>
       </div>
 
@@ -592,14 +593,17 @@ useAutoRefresh(async () => {
       </div>
 
       <!-- Content Grid -->
-      <div v-if="showPatternBlocks" class="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
+      <div
+        v-if="showPatternBlocks"
+        class="grid min-h-0 flex-1 gap-6 overflow-y-auto pb-2 lg:grid-cols-12 lg:overflow-hidden lg:pb-0"
+      >
         <!-- Patterns List -->
-        <Card padding="none" class="flex min-h-0 flex-col lg:col-span-4 xl:col-span-3">
+        <Card padding="none" class="flex flex-col lg:col-span-4 lg:min-h-0 xl:col-span-3">
           <div class="shrink-0 border-b border-gray-200 p-4 dark:border-dark-border">
             <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Список</h2>
           </div>
 
-          <div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+          <div class="max-h-72 space-y-2 overflow-y-auto p-4 lg:max-h-none lg:min-h-0 lg:flex-1">
             <div v-if="patternsStore.isLoading" class="flex justify-center py-8">
               <Spinner size="md" class="text-blue-600 dark:text-white" />
             </div>
@@ -636,19 +640,20 @@ useAutoRefresh(async () => {
         </Card>
 
         <!-- Pattern Editor -->
-        <Card padding="none" class="flex min-h-0 flex-col lg:col-span-8 xl:col-span-9">
+        <Card padding="none" class="flex flex-col lg:col-span-8 lg:min-h-0 xl:col-span-9">
           <div
-            class="flex shrink-0 items-center justify-between border-b border-gray-200 p-6 dark:border-dark-border"
+            class="flex shrink-0 flex-col gap-3 border-b border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 dark:border-dark-border"
           >
-            <div>
+            <div class="min-w-0">
               <p class="text-xs text-gray-500 dark:text-gray-400">Редактирование</p>
-              <h2 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+              <h2 class="mt-1 truncate text-lg font-bold text-gray-900 sm:text-xl dark:text-white">
                 {{ form.name || "Новый шаблон" }}
               </h2>
             </div>
             <div class="flex items-center gap-3">
               <Button
                 :variant="isDirty ? 'primary' : 'outline'"
+                class="flex-1 sm:flex-none"
                 @click="handleSave"
                 :disabled="!form.name.trim()"
               >
@@ -666,7 +671,7 @@ useAutoRefresh(async () => {
             </div>
           </div>
 
-          <div class="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
+          <div class="space-y-6 p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             <FormError :message="saveError" />
 
             <!-- Basic Info -->
@@ -697,7 +702,7 @@ useAutoRefresh(async () => {
                   :key="section.id"
                   padding="md"
                 >
-                  <div class="mb-3 flex items-center gap-3">
+                  <div class="mb-3 flex flex-wrap items-center gap-3">
                     <div
                       class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-600 dark:bg-dark-elevated dark:text-gray-300"
                     >
@@ -706,9 +711,9 @@ useAutoRefresh(async () => {
                     <Input
                       v-model="section.title"
                       placeholder="Название секции"
-                      class="flex-1 p-1.5"
+                      class="min-w-0 flex-1 p-1.5"
                     />
-                    <div class="flex items-center gap-1">
+                    <div class="ml-auto flex items-center gap-1">
                       <button
                         :disabled="index === form.sections.length - 1"
                         class="cursor-pointer rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"

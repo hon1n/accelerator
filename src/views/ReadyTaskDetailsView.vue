@@ -435,9 +435,11 @@ const onAudioDurationChange = () => {
 const onAudioTimeUpdate = () => {
   const el = audioEl.value;
   if (!el) return;
-  // Во время зондирования длительности currentTime скачет в конец файла —
-  // не отражаем это в UI.
-  if (isProbingDuration) return;
+  // Время двигаем только при реальном воспроизведении. Во время зондирования
+  // длительности и любой перемотки (el.seeking) currentTime скачет к служебным
+  // позициям — такие промежуточные значения в UI не отражаем, иначе счётчик
+  // «идёт», когда аудио на самом деле не играет.
+  if (isProbingDuration || el.seeking || el.paused) return;
   currentTime.value = el.currentTime;
   updateBuffered();
 };
@@ -492,6 +494,12 @@ const onAudioEnded = () => {
 };
 
 const onAudioError = async () => {
+  const el = audioEl.value;
+  // Аудио не загрузилось — останавливаем воспроизведение, чтобы счётчик
+  // времени не «шёл» при неиграющем аудио.
+  if (el) el.pause();
+  isPlaying.value = false;
+  isBuffering.value = false;
   // Возможен случай: presigned истёк за время простоя — пробуем один раз
   // перезапросить ссылку. Если и это не помогло, показываем сообщение.
   if (!task.value) return;
@@ -640,10 +648,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
+  <div class="flex h-dvh flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
-    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+    <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-6 lg:overflow-hidden lg:px-8">
       <div v-if="isLoading" class="flex flex-1 items-center justify-center">
         <Spinner size="lg" class="text-blue-600 dark:text-white" />
       </div>
@@ -869,9 +877,9 @@ onUnmounted(() => {
           </p>
         </div>
 
-        <div v-else class="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
+        <div v-else class="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-2">
           <!-- Конспект -->
-          <Card padding="lg" class="flex min-h-0 flex-col">
+          <Card padding="lg" class="flex min-h-[60vh] flex-col lg:min-h-0">
             <div class="mb-2 flex shrink-0 items-start justify-between gap-3">
               <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Конспект</h2>
@@ -923,7 +931,7 @@ onUnmounted(() => {
           </Card>
 
           <!-- Стенограмма -->
-          <Card padding="lg" class="flex min-h-0 flex-col">
+          <Card padding="lg" class="flex min-h-[60vh] flex-col lg:min-h-0">
             <div class="mb-4 flex shrink-0 items-center justify-between">
               <h2 class="text-base font-semibold text-gray-900 dark:text-white">Стенограмма</h2>
               <Button

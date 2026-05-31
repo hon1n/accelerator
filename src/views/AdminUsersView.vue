@@ -366,23 +366,24 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
+  <div class="flex h-dvh flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
     <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex shrink-0 items-center justify-between">
-        <div>
+      <div class="mb-6 flex shrink-0 items-center justify-between gap-3">
+        <div class="min-w-0">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             Управление пользователями
           </p>
-          <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 class="mt-1 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
             Пользователи
           </h1>
         </div>
-        <Button @click="createError = null; showCreateModal = true">
+        <Button class="shrink-0" @click="createError = null; showCreateModal = true">
           <Plus :size="18" />
-          Добавить пользователя
+          <span class="hidden sm:inline">Добавить пользователя</span>
+          <span class="sm:hidden">Добавить</span>
         </Button>
       </div>
 
@@ -411,7 +412,95 @@ useAutoRefresh(async () => {
         </div>
 
         <div v-else class="min-h-0 flex-1 overflow-y-auto">
-          <table class="w-full">
+          <!-- Мобильный список карточек -->
+          <div class="divide-y divide-gray-200 md:hidden dark:divide-gray-700">
+            <div
+              v-for="user in paginatedUsers"
+              :key="user.user_id"
+              class="bg-white p-4 dark:bg-dark-card"
+            >
+              <div class="flex items-start gap-3">
+                <div
+                  class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-600 dark:bg-white/10 dark:text-white"
+                >
+                  {{ getInitials(user.full_name) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                        {{ user.full_name }}
+                      </p>
+                      <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                        {{ user.login }}
+                      </p>
+                    </div>
+                    <Badge :variant="getRoleBadgeVariant(user.role)" size="sm">
+                      {{ getRoleLabel(user.role) }}
+                    </Badge>
+                  </div>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ user.position }}
+                  </p>
+
+                  <div class="mt-3 flex items-center justify-between gap-2">
+                    <div class="flex items-center -space-x-2">
+                      <template v-if="getUserGroups(user.user_id).length === 0">
+                        <span class="text-xs text-gray-400 dark:text-gray-500">Без групп</span>
+                      </template>
+                      <template v-else>
+                        <div
+                          v-for="group in getUserGroups(user.user_id).slice(0, 3)"
+                          :key="group.group_id"
+                          class="cursor-pointer"
+                          @click="navigateToGroup(group.group_id)"
+                        >
+                          <div
+                            :class="[
+                              'flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-medium dark:border-dark-card',
+                              opaqueGroupColor(group.group_id),
+                            ]"
+                          >
+                            {{ groupPrefix(group.name) }}
+                          </div>
+                        </div>
+                        <div
+                          v-if="getUserGroups(user.user_id).length > 3"
+                          class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-[10px] font-medium text-gray-600 dark:border-dark-card dark:bg-gray-700 dark:text-gray-200"
+                        >
+                          +{{ getUserGroups(user.user_id).length - 3 }}
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                      <button
+                        class="cursor-pointer rounded-lg p-2 text-blue-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-elevated"
+                        @click="openEditModal(user.user_id)"
+                      >
+                        <Edit :size="18" />
+                      </button>
+                      <button
+                        class="cursor-pointer rounded-lg p-2 text-orange-600 transition-colors hover:bg-gray-100 dark:text-orange-400 dark:hover:bg-dark-elevated"
+                        @click="openResetPasswordModal(user.user_id)"
+                      >
+                        <RefreshCw :size="18" />
+                      </button>
+                      <button
+                        class="cursor-pointer rounded-lg p-2 text-red-600 transition-colors hover:bg-gray-100 dark:text-red-400 dark:hover:bg-dark-elevated"
+                        @click="openDeleteModal(user.user_id)"
+                      >
+                        <Trash2 :size="18" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Десктопная таблица -->
+          <table class="hidden w-full md:table">
             <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-dark-border dark:bg-dark-elevated">
               <tr>
                 <th

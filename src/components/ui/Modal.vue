@@ -63,7 +63,7 @@ onUnmounted(() => {
           <div
             v-if="modelValue"
             :class="[
-              'relative flex max-h-[90vh] w-full flex-col rounded-lg bg-white shadow-xl dark:bg-dark-card',
+              'relative flex max-h-[90vh] max-h-[90dvh] w-full flex-col rounded-lg bg-white shadow-xl dark:bg-dark-card',
               {
                 'max-w-sm': size === 'sm',
                 'max-w-md': size === 'md',

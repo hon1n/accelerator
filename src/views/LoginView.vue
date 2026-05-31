@@ -29,7 +29,7 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <main class="flex h-screen w-full overflow-hidden bg-white dark:bg-dark">
+  <main class="flex h-dvh w-full overflow-hidden bg-white dark:bg-dark">
     <div class="flex flex-1 flex-col items-center justify-center p-6 sm:p-12">
       <div class="w-full max-w-100">
         <div class="mb-4.5">

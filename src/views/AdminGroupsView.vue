@@ -342,19 +342,20 @@ useAutoRefresh(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-dark">
+  <div class="flex h-dvh flex-col overflow-hidden bg-gray-50 dark:bg-dark">
     <Header max-width="max-w-[1800px]" />
 
     <main class="mx-auto flex w-full min-h-0 max-w-[1800px] flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
       <!-- Page Header -->
-      <div class="mb-6 flex shrink-0 items-center justify-between">
-        <div>
+      <div class="mb-6 flex shrink-0 items-center justify-between gap-3">
+        <div class="min-w-0">
           <p class="text-sm text-gray-500 dark:text-gray-400">Управление группами</p>
-          <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Группы</h1>
+          <h1 class="mt-1 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">Группы</h1>
         </div>
-        <Button v-if="isCreator" @click="createError = null; showCreateModal = true">
+        <Button v-if="isCreator" class="shrink-0" @click="createError = null; showCreateModal = true">
           <Plus :size="18" />
-          Создать группу
+          <span class="hidden sm:inline">Создать группу</span>
+          <span class="sm:hidden">Создать</span>
         </Button>
       </div>
 
@@ -665,7 +666,7 @@ useAutoRefresh(async () => {
             Если пользователя нет в списке выше, добавьте его по идентификатору (UUID).
           </p>
 
-          <form class="flex items-start gap-2" @submit.prevent="handleAddMemberById">
+          <form class="flex flex-col gap-2 sm:flex-row sm:items-start" @submit.prevent="handleAddMemberById">
             <div class="flex-1">
               <Input
                 v-model="memberIdInput"
