@@ -33,7 +33,7 @@ import {
 } from "../api";
 import { useTasksStore } from "../stores/tasks";
 import { useAuthStore } from "../stores/auth";
-import { downloadTextFile } from "../utils/download";
+import { downloadFileFromUrl, downloadTextFile } from "../utils/download";
 import {
   formatHms,
   formatMeetingDate,
@@ -465,9 +465,21 @@ const onAudioProgress = () => {
   updateBuffered();
 };
 
-// Браузеру не хватает данных для продолжения — показываем индикатор загрузки.
+// Браузеру не хватает данных для продолжения: аудио фактически не звучит.
+// Ставим воспроизведение на паузу, чтобы счётчик времени не «шёл», пока
+// звука нет. Пользователь продолжит вручную кнопкой Play, когда захочет.
 const onAudioWaiting = () => {
-  isBuffering.value = true;
+  isBuffering.value = false;
+  const el = audioEl.value;
+  if (el && !el.paused) el.pause();
+};
+
+// Браузер не может получить данные (зависшая сеть) — тоже считаем, что аудио
+// не воспроизводится, и встаём на паузу, чтобы время не двигалось.
+const onAudioStalled = () => {
+  isBuffering.value = false;
+  const el = audioEl.value;
+  if (el && !el.paused) el.pause();
 };
 
 // Данных снова достаточно — прячем индикатор.
@@ -531,6 +543,24 @@ const handleDownloadTranscript = () => {
     .join("\n\n");
   const filename = `${safeFileBase(task.value.task_name, "stenogramma")}.txt`;
   downloadTextFile(filename, text);
+};
+
+// Скачивание исходного аудиофайла. Тянем файл по presigned-ссылке в blob,
+// чтобы сработал диалог сохранения (кросс-доменный download иначе откроет
+// файл в новой вкладке). При ошибке fetch (например, CORS) откатываемся на
+// открытие ссылки в новом окне.
+const isAudioDownloading = ref(false);
+const handleDownloadAudio = async () => {
+  if (!task.value || !audioUrl.value || isAudioDownloading.value) return;
+  const filename = `${safeFileBase(task.value.task_name, "audio")}.wav`;
+  isAudioDownloading.value = true;
+  try {
+    await downloadFileFromUrl(audioUrl.value, filename);
+  } catch {
+    window.open(audioUrl.value, "_blank", "noopener");
+  } finally {
+    isAudioDownloading.value = false;
+  }
 };
 
 const openEditModal = () => {
@@ -714,6 +744,7 @@ onUnmounted(() => {
             @timeupdate="onAudioTimeUpdate"
             @progress="onAudioProgress"
             @waiting="onAudioWaiting"
+            @stalled="onAudioStalled"
             @playing="onAudioPlaying"
             @canplay="onAudioCanPlay"
             @play="onAudioPlay"
@@ -722,7 +753,7 @@ onUnmounted(() => {
             @error="onAudioError"
           />
 
-          <div class="flex items-center gap-3 sm:gap-4">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap sm:gap-4">
             <!-- Play / Pause -->
             <button
               type="button"
@@ -749,7 +780,7 @@ onUnmounted(() => {
             </button>
 
             <!-- Шкала прогресса + тайминги -->
-            <div class="flex min-w-0 flex-1 items-center gap-3">
+            <div class="order-last flex w-full basis-full items-center gap-3 sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-auto">
               <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
                 {{ formattedCurrent }}
               </span>
@@ -790,7 +821,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Громкость + скорость -->
-            <div class="flex flex-shrink-0 items-center gap-1 sm:gap-2">
+            <div class="ml-auto flex flex-shrink-0 items-center gap-1 sm:ml-0 sm:gap-2">
               <div
                 class="relative flex items-center"
                 @mouseenter="showVolumeSlider = true"
@@ -849,6 +880,16 @@ onUnmounted(() => {
                 @click="cyclePlaybackRate"
               >
                 {{ formattedPlaybackRate }}
+              </button>
+              <button
+                type="button"
+                :disabled="!audioUrl || isAudioDownloading"
+                class="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:hover:bg-dark-elevated"
+                title="Скачать аудиофайл"
+                @click="handleDownloadAudio"
+              >
+                <Loader2 v-if="isAudioDownloading" :size="18" class="animate-spin" />
+                <Download v-else :size="18" />
               </button>
             </div>
           </div>

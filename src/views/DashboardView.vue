@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ChevronDown, Plus, Search } from "@lucide/vue";
+import { Plus, Search } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import TaskCard from "../components/features/TaskCard.vue";
 import Pagination from "../components/ui/Pagination.vue";
@@ -9,7 +9,6 @@ import Button from "../components/ui/Button.vue";
 import Input from "../components/ui/Input.vue";
 import Select from "../components/ui/Select.vue";
 import Spinner from "../components/ui/Spinner.vue";
-import Dropdown from "../components/ui/Dropdown.vue";
 import Modal from "../components/ui/Modal.vue";
 import FormError from "../components/ui/FormError.vue";
 import { extractApiErrorMessage } from "../api";
@@ -105,6 +104,13 @@ const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredTasks.value.length / itemsPerPage)),
 );
 
+const groupOptions = computed(() =>
+  groupsStore.groups.map((group) => ({
+    value: group.group_id,
+    label: group.name,
+  })),
+);
+
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   scrollContainer.value?.scrollTo({ top: 0, behavior: "smooth" });
@@ -190,59 +196,40 @@ useAutoRefresh(async () => {
           </h1>
         </div>
 
-        <Dropdown
-          align="right"
-          :empty="groupsStore.groups.length === 0"
-          empty-text="Нет доступных групп"
-        >
-          <template #trigger>
-            <button
-              class="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-border dark:bg-dark-card dark:text-gray-200 dark:hover:bg-dark-elevated"
-            >
-              {{ groupsStore.activeGroup?.name || "Выберите группу" }}
-              <ChevronDown :size="16" class="text-gray-400" />
-            </button>
-          </template>
-
-          <template #content="{ close }">
-            <div class="max-h-64 overflow-y-auto">
-              <button
-                v-for="group in groupsStore.groups"
-                :key="group.group_id"
-                class="flex w-full cursor-pointer items-center px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-elevated"
-                :class="{
-                  'bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-white':
-                    groupsStore.activeGroupId === group.group_id,
-                }"
-                @click="
-                  () => {
-                    handleGroupSelect(group.group_id);
-                    close();
-                  }
-                "
-              >
-                {{ group.name }}
-              </button>
-            </div>
-          </template>
-        </Dropdown>
+        <Select
+          :model-value="groupsStore.activeGroupId ?? ''"
+          :options="groupOptions"
+          placeholder="Выберите группу"
+          hide-label
+          class="w-full sm:w-64"
+          @update:model-value="handleGroupSelect"
+        />
       </div>
 
       <!-- Filters -->
-      <div class="mb-6 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="mb-6 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end">
-          <div class="relative flex-1 sm:max-w-xs">
+          <!-- Поиск: на всю ширину на мобильных -->
+          <div class="relative w-full sm:max-w-xs sm:flex-1">
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Search :size="18" class="text-gray-400" />
             </div>
             <Input v-model="searchQuery" placeholder="Найти запись" class="pl-10" />
           </div>
 
-          <Select v-model="selectedDate" :options="dateOptions" class="sm:w-48" />
-          <Select v-model="selectedStatus" :options="statusOptions" class="sm:w-48" />
+          <!-- Фильтры: делят строку поровну на мобильных -->
+          <div class="flex gap-3 sm:contents">
+            <Select v-model="selectedDate" :options="dateOptions" class="flex-1 sm:w-48 sm:flex-none" />
+            <Select v-model="selectedStatus" :options="statusOptions" class="flex-1 sm:w-48 sm:flex-none" />
+          </div>
         </div>
 
-        <Button @click="handleCreateTask" :disabled="!groupsStore.activeGroupId">
+        <!-- Кнопка: на всю ширину на мобильных -->
+        <Button
+          class="w-full sm:w-auto sm:shrink-0"
+          @click="handleCreateTask"
+          :disabled="!groupsStore.activeGroupId"
+        >
           <Plus :size="18" />
           Создать запись
         </Button>
