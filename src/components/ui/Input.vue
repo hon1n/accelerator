@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
-import { computed, useAttrs } from "vue";
+import { computed, ref, useAttrs } from "vue";
+import { Eye, EyeOff } from "@lucide/vue";
 import {
   fieldControlClass,
   fieldControlSizeClass,
@@ -35,16 +36,35 @@ const emit = defineEmits<{
 
 const attrs = useAttrs();
 
+const isPassword = computed(() => props.type === "password");
+const showPassword = ref(false);
+
+const resolvedType = computed(() => {
+  if (isPassword.value) {
+    return showPassword.value ? "text" : "password";
+  }
+  return props.type;
+});
+
 const wrapperClass = computed(() =>
   props.label && !props.hideLabel ? fieldWrapperClass : "flex w-full flex-col",
 );
 
 const inputClass = computed(() => {
   const extra = typeof attrs.class === "string" ? attrs.class : "";
-  return [fieldControlClass({ error: props.error, disabled: props.disabled }), fieldControlSizeClass, extra]
+  return [
+    fieldControlClass({ error: props.error, disabled: props.disabled }),
+    fieldControlSizeClass,
+    isPassword.value ? "pr-11" : "",
+    extra,
+  ]
     .filter(Boolean)
     .join(" ");
 });
+
+const togglePassword = () => {
+  showPassword.value = !showPassword.value;
+};
 
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -58,15 +78,37 @@ const handleInput = (event: Event) => {
     <label v-if="label && !hideLabel" :class="fieldLabelClass">
       {{ label }}
     </label>
-    <input
-      :type="type"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :maxlength="maxlength"
-      :disabled="disabled"
-      :class="inputClass"
-      v-bind="{ ...attrs, class: undefined }"
-      @input="handleInput"
-    />
+    <div class="relative w-full">
+      <input
+        :type="resolvedType"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :maxlength="maxlength"
+        :disabled="disabled"
+        :class="inputClass"
+        v-bind="{ ...attrs, class: undefined }"
+        @input="handleInput"
+      />
+      <button
+        v-if="isPassword"
+        type="button"
+        tabindex="-1"
+        :disabled="disabled"
+        :aria-label="showPassword ? 'Скрыть пароль' : 'Показать пароль'"
+        class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-300"
+        @click="togglePassword"
+      >
+        <EyeOff v-if="showPassword" :size="18" />
+        <Eye v-else :size="18" />
+      </button>
+    </div>
   </div>
 </template>
+
+<style scoped>
+/* Скрываем нативные иконки браузера, чтобы не дублировать собственную кнопку. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+</style>
