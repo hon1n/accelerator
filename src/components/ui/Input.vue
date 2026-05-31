@@ -78,7 +78,7 @@ const handleInput = (event: Event) => {
     <label v-if="label && !hideLabel" :class="fieldLabelClass">
       {{ label }}
     </label>
-    <div class="relative w-full">
+    <div :class="isPassword ? 'relative w-full' : 'contents'">
       <input
         :type="resolvedType"
         :value="modelValue"
