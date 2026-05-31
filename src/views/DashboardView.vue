@@ -312,7 +312,7 @@ useAutoRefresh(async () => {
         </p>
       </div>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="confirmDelete" :is-loading="tasksStore.isMutating">Удалить</Button>
       </template>
     </Modal>

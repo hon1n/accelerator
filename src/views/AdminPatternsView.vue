@@ -667,7 +667,7 @@ useAutoRefresh(async () => {
         </p>
       </div>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button variant="primary" @click="handleDelete" :is-loading="patternsStore.isMutating">Удалить</Button>
       </template>
     </Modal>

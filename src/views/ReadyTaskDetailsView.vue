@@ -572,7 +572,7 @@ onUnmounted(() => {
         <DatePicker v-model="editForm.meetingDate" label="Дата встречи" />
       </form>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleSaveEdit" :is-loading="tasksStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -585,7 +585,7 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleDelete" :is-loading="tasksStore.isMutating">Удалить</Button>
       </template>
     </Modal>

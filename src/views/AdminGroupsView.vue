@@ -441,7 +441,7 @@ useAutoRefresh(async () => {
         </div>
       </form>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleCreateGroup" :is-loading="groupsStore.isMutating">Создать</Button>
       </template>
     </Modal>
@@ -468,7 +468,7 @@ useAutoRefresh(async () => {
         </div>
       </form>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleEditGroup" :is-loading="groupsStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -482,7 +482,7 @@ useAutoRefresh(async () => {
         </p>
       </div>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleDeleteGroup" :is-loading="groupsStore.isMutating">Удалить</Button>
       </template>
     </Modal>

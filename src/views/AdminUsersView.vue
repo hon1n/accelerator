@@ -212,18 +212,6 @@ const handleCreateUser = async () => {
   }
 };
 
-const closeCreateModal = () => {
-  showCreateModal.value = false;
-  createdUserPassword.value = null;
-  createError.value = null;
-  createForm.value = {
-    login: "",
-    fullName: "",
-    position: "",
-    role: "user",
-  };
-};
-
 const copyPassword = async () => {
   if (createdUserPassword.value) {
     await navigator.clipboard.writeText(createdUserPassword.value);
@@ -619,7 +607,7 @@ useAutoRefresh(async () => {
         <Select v-model="editForm.role" label="Роль" :options="roleOptionsForForm" />
       </form>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleEditUser" :is-loading="usersStore.isMutating">Сохранить</Button>
       </template>
     </Modal>
@@ -633,7 +621,7 @@ useAutoRefresh(async () => {
         </p>
       </div>
 
-      <template #footer="{ close }">
+      <template #footer>
         <Button @click="handleDeleteUser" :is-loading="usersStore.isMutating">Удалить</Button>
       </template>
     </Modal>
