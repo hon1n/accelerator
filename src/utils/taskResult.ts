@@ -32,9 +32,31 @@ function pickString(value: unknown, keys: string[]): string | null {
   return null;
 }
 
+/** Грубая проверка, что строка — это http(s)-ссылка, а не текст конспекта. */
+function isLikelyUrl(value: string): boolean {
+  return /^https?:\/\/\S+$/i.test(value.trim());
+}
+
 function extractSummary(raw: unknown): string | null {
-  if (typeof raw === "string") return raw;
-  return pickString(raw, ["summary", "summary_text", "result", "text", "markdown"]);
+  // Бекенд кладёт в `summary` presigned-ссылку на summary.md, а не текст.
+  // Саму ссылку показывать нельзя — её содержимое подтягивает resolveTaskResult.
+  if (typeof raw === "string") return isLikelyUrl(raw) ? null : raw;
+  const value = pickString(raw, ["summary", "summary_text", "result", "text", "markdown"]);
+  if (value && isLikelyUrl(value)) return null;
+  return value;
+}
+
+/** Presigned-ссылка на файл конспекта (summary.md), если result её содержит. */
+function extractSummaryUrl(raw: unknown): string | null {
+  if (typeof raw === "string") return isLikelyUrl(raw) ? raw.trim() : null;
+  const value = pickString(raw, ["summary", "summary_url", "summary_md"]);
+  return value && isLikelyUrl(value) ? value.trim() : null;
+}
+
+/** Presigned-ссылка на JSON со стенограммой/диаризацией, если она есть. */
+function extractTranscriptUrl(raw: unknown): string | null {
+  const value = pickString(raw, ["transcript", "diarize", "diarization", "transcript_url"]);
+  return value && isLikelyUrl(value) ? value.trim() : null;
 }
 
 function secondsToTimestamp(seconds: number): string {
@@ -132,4 +154,75 @@ export function isResultEmpty(raw: unknown): boolean {
   if (Array.isArray(raw)) return raw.length === 0;
   if (isRecord(raw)) return Object.keys(raw).length === 0;
   return false;
+}
+
+/**
+ * Достаёт текст конспекта из содержимого summary.md. Воркер суммаризации
+ * сохраняет файл как JSON вида `{"status":"success","analysis_report":"<markdown>"}`,
+ * но на случай, если положили чистый markdown, обрабатываем и его.
+ */
+function parseSummaryContent(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    const report = pickString(parsed, ["analysis_report", "summary", "report", "text"]);
+    if (report) return report;
+    if (typeof parsed === "string" && parsed.trim()) return parsed;
+  } catch {
+    // не JSON — значит это уже готовый markdown
+  }
+  return trimmed;
+}
+
+/** Парсит содержимое JSON-файла диаризации/стенограммы в список реплик. */
+function parseTranscriptContent(text: string): TranscriptEntry[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  try {
+    return extractTranscript(JSON.parse(trimmed));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchText(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    // CORS / истёкшая ссылка / сеть — молча отдаём null, UI покажет заглушку
+    return null;
+  }
+}
+
+/**
+ * Бекенд отдаёт в `result` presigned-ссылки на summary.md и diarization.json,
+ * а не сам контент. Эта функция догружает файлы по ссылкам и возвращает
+ * результат с уже распарсенными текстом конспекта и стенограммой.
+ *
+ * Если содержимое было встроено напрямую (моки, будущий формат) — ссылок нет,
+ * и мы просто возвращаем синхронно нормализованный результат.
+ */
+export async function resolveTaskResult(raw: unknown): Promise<NormalizedTaskResult> {
+  const base = normalizeTaskResult(raw);
+
+  const summaryUrl = extractSummaryUrl(raw);
+  const transcriptUrl = extractTranscriptUrl(raw);
+
+  if (!summaryUrl && !transcriptUrl) return base;
+
+  const [summaryText, transcriptText] = await Promise.all([
+    summaryUrl ? fetchText(summaryUrl) : Promise.resolve(null),
+    transcriptUrl ? fetchText(transcriptUrl) : Promise.resolve(null),
+  ]);
+
+  return {
+    summary: summaryText ? parseSummaryContent(summaryText) : base.summary,
+    transcript: transcriptText
+      ? parseTranscriptContent(transcriptText)
+      : base.transcript,
+    raw,
+  };
 }

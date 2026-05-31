@@ -37,6 +37,7 @@ import { speakerPillClass } from "../utils/speakerColor";
 import {
   isResultEmpty,
   normalizeTaskResult,
+  resolveTaskResult,
   type NormalizedTaskResult,
 } from "../utils/taskResult";
 
@@ -62,8 +63,36 @@ const patternName = ref<string | null>(null);
 
 const task = computed(() => tasksStore.currentTask);
 
-const normalizedResult = computed<NormalizedTaskResult>(() =>
-  normalizeTaskResult(task.value?.result),
+// Бекенд кладёт в result presigned-ссылки на summary.md и diarization.json,
+// а не сам контент. Догружаем файлы по ссылкам (см. resolveTaskResult) и
+// держим уже распарсенный результат здесь. Пока идёт загрузка — показываем
+// заглушку. Если ссылок нет (моки/прямой контент) — заполняется синхронно.
+const EMPTY_RESULT: NormalizedTaskResult = {
+  summary: null,
+  transcript: [],
+  raw: null,
+};
+
+const normalizedResult = ref<NormalizedTaskResult>(EMPTY_RESULT);
+const isResultLoading = ref(false);
+
+watch(
+  () => task.value?.result,
+  async (raw) => {
+    if (isResultEmpty(raw)) {
+      normalizedResult.value = { ...EMPTY_RESULT, raw: raw ?? null };
+      return;
+    }
+    // Синхронная нормализация — мгновенно показываем то, что встроено напрямую.
+    normalizedResult.value = normalizeTaskResult(raw);
+    isResultLoading.value = true;
+    try {
+      normalizedResult.value = await resolveTaskResult(raw);
+    } finally {
+      isResultLoading.value = false;
+    }
+  },
+  { immediate: true },
 );
 
 const hasResult = computed(() => !isResultEmpty(task.value?.result));
@@ -729,6 +758,13 @@ onUnmounted(() => {
                 class="summary-content text-sm text-gray-800 dark:text-gray-200"
                 v-html="renderedSummary"
               />
+              <div
+                v-else-if="isResultLoading"
+                class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
+              >
+                <Spinner size="sm" />
+                Загрузка конспекта…
+              </div>
               <p v-else class="text-sm text-gray-500 dark:text-gray-400">
                 Конспект ещё не сформирован.
               </p>
@@ -804,6 +840,13 @@ onUnmounted(() => {
                     {{ entry.text }}
                   </p>
                 </component>
+              </div>
+              <div
+                v-else-if="isResultLoading"
+                class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
+              >
+                <Spinner size="sm" />
+                Загрузка стенограммы…
               </div>
               <p v-else class="text-sm text-gray-500 dark:text-gray-400">
                 Стенограмма недоступна.

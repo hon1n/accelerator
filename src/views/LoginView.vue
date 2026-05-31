@@ -13,7 +13,7 @@ const authStore = useAuthStore();
 const form = reactive({
   login: "",
   password: "",
-  rememberMe: false,
+  rememberMe: true,
 });
 
 const canRegisterCreator = ref(false);

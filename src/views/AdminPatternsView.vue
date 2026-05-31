@@ -61,6 +61,27 @@ const form = ref({
   groupId: "",
 });
 
+// Снимок формы на момент загрузки/сохранения шаблона.
+// Пока форма совпадает со снимком, считаем что несохранённых изменений нет
+// и кнопка «Сохранить» остаётся приглушённой.
+const formSnapshot = ref("");
+
+const serializeForm = () =>
+  JSON.stringify({
+    name: form.value.name,
+    description: form.value.description,
+    details: form.value.details,
+    style: form.value.style,
+    sections: form.value.sections,
+    groupId: form.value.groupId,
+  });
+
+const captureFormSnapshot = () => {
+  formSnapshot.value = serializeForm();
+};
+
+const isDirty = computed(() => serializeForm() !== formSnapshot.value);
+
 const detailsOptions = [
   { value: "Оптимально", label: "Оптимально" },
   { value: "Кратко", label: "Кратко" },
@@ -186,6 +207,7 @@ const loadPatternToForm = (pattern: PatternDto & { isDraft?: true }) => {
     form.value.style = "Разговорный";
     form.value.sections = [];
     isEditing.value = false;
+    captureFormSnapshot();
     return;
   }
   
@@ -200,6 +222,7 @@ const loadPatternToForm = (pattern: PatternDto & { isDraft?: true }) => {
   
   form.value.sections = parseSectionsFromPrompt(pattern.additional_prompt);
   isEditing.value = true;
+  captureFormSnapshot();
 };
 
 const resetForm = () => {
@@ -215,6 +238,7 @@ const resetForm = () => {
   };
   selectedPatternId.value = null;
   isEditing.value = false;
+  captureFormSnapshot();
 };
 
 const clearDrafts = () => {
@@ -316,6 +340,9 @@ const handleSave = async () => {
       selectedPatternId.value = created.pattern_id;
       isEditing.value = true;
     }
+
+    // Изменения сохранены — фиксируем новый снимок, кнопка снова приглушается.
+    captureFormSnapshot();
   } catch (error) {
     console.error("Failed to save pattern:", error);
     saveError.value = patternSaveErrorMessage(error);
@@ -559,7 +586,11 @@ useAutoRefresh(async () => {
               </h2>
             </div>
             <div class="flex items-center gap-3">
-              <Button @click="handleSave" :disabled="!form.name.trim()">
+              <Button
+                :variant="isDirty ? 'primary' : 'outline'"
+                @click="handleSave"
+                :disabled="!form.name.trim()"
+              >
                 <Save :size="16" />
                 Сохранить
               </Button>

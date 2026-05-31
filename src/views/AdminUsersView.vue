@@ -180,6 +180,26 @@ watch([searchQuery, selectedRole], () => {
   currentPage.value = 1;
 });
 
+const resetCreateForm = () => {
+  createForm.value = {
+    login: "",
+    fullName: "",
+    position: "",
+    role: "user",
+  };
+  createdUserPassword.value = null;
+  createError.value = null;
+  passwordCopied.value = false;
+};
+
+// Очищаем форму создания при закрытии модального окна,
+// чтобы при повторном открытии не оставались старые данные
+watch(showCreateModal, (isOpen) => {
+  if (!isOpen) {
+    resetCreateForm();
+  }
+});
+
 const handleCreateUser = async () => {
   createError.value = null;
 
