@@ -34,7 +34,6 @@ import { useTasksStore } from "../stores/tasks";
 import { useAuthStore } from "../stores/auth";
 import { downloadTextFile } from "../utils/download";
 import {
-  formatDuration,
   formatHms,
   formatMeetingDate,
   isDone,
@@ -110,23 +109,7 @@ const hasResult = computed(() => !isResultEmpty(task.value?.result));
 
 const renderedSummary = computed(() => renderMarkdown(normalizedResult.value.summary));
 
-const speakerCount = computed(() => {
-  const set = new Set(normalizedResult.value.transcript.map((e) => e.speaker));
-  return set.size;
-});
-
 const formattedMeetingDate = computed(() => formatMeetingDate(task.value?.meeting_date));
-const formattedDurationLabel = computed(() =>
-  task.value && task.value.duration_seconds > 0
-    ? formatDuration(task.value.duration_seconds)
-    : null,
-);
-const speakersLabel = computed(() => {
-  const n = speakerCount.value;
-  if (!n) return null;
-  const word = n === 1 ? "спикер" : n >= 2 && n <= 4 ? "спикера" : "спикеров";
-  return `${n} ${word}`;
-});
 
 // Можно ли перейти к редактированию шаблона конспекта.
 // Обычный пользователь такой возможности не имеет вовсе.
@@ -595,8 +578,6 @@ onUnmounted(() => {
               <Clock :size="14" class="shrink-0" />
               <span>
                 {{ formattedMeetingDate }}
-                <!-- <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template> -->
-                <!-- <template v-if="speakersLabel"> • {{ speakersLabel }}</template> -->
               </span>
             </p>
           </div>

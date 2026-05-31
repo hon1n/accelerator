@@ -13,7 +13,6 @@ import Card from "../ui/Card.vue";
 import Badge from "../ui/Badge.vue";
 import type { TaskDto } from "../../api/tasks.types";
 import {
-  formatDuration,
   formatMeetingDate,
   isDone,
   statusLabel,
@@ -48,7 +47,6 @@ const statusConfig = computed(() => {
 });
 
 const formattedMeetingDate = computed(() => formatMeetingDate(props.task.meeting_date));
-const formattedDurationLabel = computed(() => formatDuration(props.task.duration_seconds));
 
 const handleClick = () => {
   if (ui.value === "error") return;
@@ -105,7 +103,6 @@ const handleDelete = (event: MouseEvent) => {
             </h3>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {{ formattedMeetingDate }}
-              <!-- <template v-if="task.duration_seconds > 0"> • {{ formattedDurationLabel }}</template> -->
             </p>
           </div>
 
