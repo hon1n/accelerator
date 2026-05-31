@@ -89,6 +89,23 @@ const currentTime = ref(0);
 const audioDuration = ref(0);
 let didRetryAfterExpire = false;
 
+// ---- Скорость воспроизведения ----
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const playbackRate = ref(1);
+const formattedPlaybackRate = computed(() => `${playbackRate.value}×`);
+
+const applyPlaybackRate = () => {
+  if (audioEl.value) {
+    audioEl.value.playbackRate = playbackRate.value;
+  }
+};
+
+const cyclePlaybackRate = () => {
+  const idx = PLAYBACK_RATES.indexOf(playbackRate.value);
+  playbackRate.value = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
+  applyPlaybackRate();
+};
+
 const totalSeconds = computed(() => {
   if (audioDuration.value > 0) return audioDuration.value;
   return task.value?.duration_seconds ?? 0;
@@ -148,6 +165,9 @@ const onAudioLoaded = () => {
   if (Number.isFinite(el.duration) && el.duration > 0) {
     audioDuration.value = el.duration;
   }
+  // <audio> сбрасывает playbackRate на 1 при загрузке нового источника —
+  // восстанавливаем выбранную пользователем скорость.
+  el.playbackRate = playbackRate.value;
   isAudioReady.value = true;
 };
 
@@ -378,6 +398,15 @@ onUnmounted(() => {
             >
               <Play v-if="!isPlaying" :size="18" />
               <Pause v-else :size="18" />
+            </button>
+            <button
+              type="button"
+              :disabled="!canPlay"
+              class="flex h-10 min-w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 px-3 text-sm font-semibold tabular-nums text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:text-gray-200 dark:hover:bg-dark-elevated"
+              title="Скорость воспроизведения"
+              @click="cyclePlaybackRate"
+            >
+              {{ formattedPlaybackRate }}
             </button>
             <span
               class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 dark:border-dark-border dark:text-gray-400"
