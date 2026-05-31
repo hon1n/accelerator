@@ -22,6 +22,7 @@ const realTasksService = {
     groupId: string,
     audio: File,
     data: UploadTaskData,
+    onProgress?: (percent: number) => void,
   ): Promise<UploadTaskResponse> {
     const formData = new FormData();
     formData.append("data", JSON.stringify(data));
@@ -30,6 +31,13 @@ const realTasksService = {
     return api
       .post<UploadTaskResponse>(`${TASKS}/upload/${groupId}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (event) => {
+          if (!onProgress) return;
+          const total = event.total ?? 0;
+          if (total > 0) {
+            onProgress(Math.min(100, Math.round((event.loaded / total) * 100)));
+          }
+        },
       })
       .then((r) => r.data);
   },

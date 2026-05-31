@@ -52,6 +52,9 @@ let draftCounter = 0;
 const saveError = ref<string | null>(null);
 const deleteError = ref<string | null>(null);
 
+// Подсвечиваем незаполненные описания секций только после попытки сохранить.
+const showSectionErrors = ref(false);
+
 const form = ref({
   name: "",
   description: "",
@@ -100,6 +103,12 @@ const groupOptions = computed(() => {
     label: g.name,
   }));
 });
+
+// На вкладке «Глобальные» блоки доступны всегда, на «Групповых» — только
+// после явного выбора группы.
+const showPatternBlocks = computed(
+  () => activeTab.value === "global" || !!form.value.groupId,
+);
 
 const displayedPatterns = computed((): Array<PatternDto & { isDraft?: true }> => {
   const currentGroupId = form.value.groupId;
@@ -232,9 +241,8 @@ const resetForm = () => {
     details: "Оптимально",
     style: "Разговорный",
     sections: [],
-    groupId: activeTab.value === "group" && groupsStore.groups.length > 0 
-      ? groupsStore.groups[0].group_id 
-      : "",
+    // Группу не выбираем автоматически — пользователь выбирает её сам.
+    groupId: "",
   };
   selectedPatternId.value = null;
   isEditing.value = false;
@@ -246,6 +254,9 @@ const clearDrafts = () => {
 };
 
 const handleNewPattern = () => {
+  // На вкладке «Групповые» сначала нужно выбрать группу.
+  if (activeTab.value === "group" && !form.value.groupId) return;
+
   const draftId = `draft-${++draftCounter}`;
   const groupId = activeTab.value === "group" ? form.value.groupId : "";
   
@@ -290,6 +301,7 @@ const moveSectionDown = (index: number) => {
 
 const handleSave = async () => {
   saveError.value = null;
+  showSectionErrors.value = true;
 
   if (!form.value.name.trim()) {
     saveError.value = "Укажите название шаблона";
@@ -298,6 +310,11 @@ const handleSave = async () => {
 
   if (activeTab.value === "group" && !form.value.groupId) {
     saveError.value = "Выберите группу для группового шаблона";
+    return;
+  }
+
+  if (form.value.sections.some((section) => !section.prompt.trim())) {
+    saveError.value = "Заполните описание для всех секций";
     return;
   }
 
@@ -375,6 +392,12 @@ const handleDelete = async () => {
 };
 
 const selectFirstPatternOrCreate = () => {
+  // На вкладке «Групповые» без выбранной группы ничего не показываем.
+  if (activeTab.value === "group" && !form.value.groupId) {
+    selectedPatternId.value = null;
+    return;
+  }
+
   const patterns = displayedPatterns.value;
   if (patterns.length > 0) {
     selectedPatternId.value = patterns[0].pattern_id;
@@ -395,13 +418,9 @@ const handleTabChange = async (tab: "global" | "group") => {
   
   if (tab === "global") {
     await patternsStore.fetchGlobalPatterns();
-  } else if (groupsStore.groups.length > 0) {
-    const firstGroupId = groupsStore.groups[0].group_id;
-    form.value.groupId = firstGroupId;
-    await patternsStore.fetchGroupPatterns(firstGroupId);
+    selectFirstPatternOrCreate();
   }
-  
-  selectFirstPatternOrCreate();
+  // На вкладке «Групповые» ждём, пока пользователь выберет группу.
 };
 
 const handleGroupChange = async (groupId: string) => {
@@ -417,6 +436,7 @@ const handleGroupChange = async (groupId: string) => {
 
 watch(selectedPatternId, (newId) => {
   saveError.value = null;
+  showSectionErrors.value = false;
   if (newId) {
     const pattern = displayedPatterns.value.find((p) => p.pattern_id === newId);
     if (pattern) {
@@ -425,28 +445,17 @@ watch(selectedPatternId, (newId) => {
   }
 });
 
-// Инициализация groupId при загрузке групп
-watch(
-  () => groupsStore.groups,
-  (groups) => {
-    if (groups.length > 0 && !form.value.groupId) {
-      form.value.groupId = groups[0].group_id;
-    }
-  },
-  { immediate: true }
-);
+// Группу не выбираем автоматически — пользователь должен выбрать её сам,
+// поэтому начальная инициализация groupId по списку групп больше не нужна.
 
 onMounted(async () => {
   try {
     await groupsStore.fetchGroups({ force: true });
     if (canManageGlobal.value) {
       await patternsStore.fetchGlobalPatterns({ force: true });
-    } else if (groupsStore.groups.length > 0) {
-      // Админ работает только с групповыми шаблонами.
-      const firstGroupId = groupsStore.groups[0].group_id;
-      form.value.groupId = firstGroupId;
-      await patternsStore.fetchGroupPatterns(firstGroupId, { force: true });
     }
+    // Админ работает только с групповыми шаблонами, но группу выбирает сам —
+    // до выбора группы ничего не подгружаем.
   } catch (error) {
     console.error("Failed to load initial data:", error);
   } finally {
@@ -526,12 +535,13 @@ useAutoRefresh(async () => {
         <Select
           :model-value="form.groupId"
           :options="groupOptions"
+          placeholder="Выберите группу"
           @update:model-value="handleGroupChange"
         />
       </div>
 
       <!-- Content Grid -->
-      <div class="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
+      <div v-if="showPatternBlocks" class="grid min-h-0 flex-1 gap-6 lg:grid-cols-12">
         <!-- Patterns List -->
         <Card padding="none" class="flex min-h-0 flex-col lg:col-span-4 xl:col-span-3">
           <div class="shrink-0 border-b border-gray-200 p-4 dark:border-dark-border">
@@ -674,7 +684,14 @@ useAutoRefresh(async () => {
                     v-model="section.prompt"
                     :rows="3"
                     placeholder="Какой результат хотите получить от ИИ"
+                    :error="showSectionErrors && !section.prompt.trim()"
                   />
+                  <p
+                    v-if="showSectionErrors && !section.prompt.trim()"
+                    class="mt-1 text-xs text-red-500"
+                  >
+                    Заполните описание секции
+                  </p>
                 </Card>
 
                 <div
@@ -703,6 +720,14 @@ useAutoRefresh(async () => {
             </Card>
           </div>
         </Card>
+      </div>
+
+      <!-- Подсказка, пока группа не выбрана -->
+      <div
+        v-else
+        class="flex min-h-0 flex-1 items-center justify-center text-center text-sm text-gray-500 dark:text-gray-400"
+      >
+        Выберите группу, чтобы просмотреть и редактировать её шаблоны.
       </div>
     </main>
 

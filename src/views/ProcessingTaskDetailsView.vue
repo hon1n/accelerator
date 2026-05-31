@@ -14,7 +14,7 @@ import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Badge from "../components/ui/Badge.vue";
 import Spinner from "../components/ui/Spinner.vue";
-import { useTasksStore } from "../stores/tasks";
+import { useTasksStore, UPLOADING_TASK_ID } from "../stores/tasks";
 import {
   PIPELINE_STATUSES,
   formatHms,
@@ -35,6 +35,8 @@ interface Stage {
   state: "completed" | "in_progress" | "pending" | "error";
   detail: string;
   isCurrent: boolean;
+  /** Прогресс передачи файла (только для этапа загрузки), 0..100 */
+  progress: number | null;
 }
 
 const route = useRoute();
@@ -42,13 +44,26 @@ const router = useRouter();
 const tasksStore = useTasksStore();
 
 const taskId = computed(() => route.params.id as string);
+const isUploadingPhase = computed(() => taskId.value === UPLOADING_TASK_ID);
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const elapsedSeconds = ref(0);
 
+/** Прогресс передачи файла на сервер (0..100) во время фазы загрузки. */
+const uploadProgress = computed(() => tasksStore.activeUpload?.progress ?? 0);
+
+/** Имя записи: из загруженной задачи либо из активной загрузки. */
+const displayName = computed(
+  () =>
+    tasksStore.currentTask?.task_name ||
+    tasksStore.activeUpload?.taskName ||
+    "Запись",
+);
+
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 let stopPoll: (() => void) | null = null;
+let disposed = false;
 
 /**
  * Текущий «представительный» этап для шкалы.
@@ -86,9 +101,14 @@ const STAGE_GROUPS: Array<{
   },
 ];
 
-const currentStatus = computed<TaskStatus | null>(
-  () => tasksStore.currentStatus?.status ?? tasksStore.currentTask?.status ?? null,
-);
+const currentStatus = computed<TaskStatus | null>(() => {
+  // Пока файл ещё передаётся на сервер, реального статуса нет — показываем
+  // первый этап «Загрузка файла» как активный.
+  if (isUploadingPhase.value && !tasksStore.currentTask) {
+    return "processing_upload";
+  }
+  return tasksStore.currentStatus?.status ?? tasksStore.currentTask?.status ?? null;
+});
 
 const currentStageIndex = computed(() => {
   const status = currentStatus.value;
@@ -117,7 +137,13 @@ const stages = computed<Stage[]>(() =>
     }
 
     const isCurrent = index === idx;
-    const detail = buildStageDetail(state, isCurrent);
+    // Этап загрузки во время передачи файла показывает реальный прогресс.
+    const isUploadStage = group.statuses[0] === "processing_upload";
+    const progress =
+      isUploadStage && isCurrent && isUploadingPhase.value && !tasksStore.currentTask
+        ? uploadProgress.value
+        : null;
+    const detail = buildStageDetail(state, isCurrent, progress);
 
     return {
       status: group.statuses[0],
@@ -126,15 +152,27 @@ const stages = computed<Stage[]>(() =>
       state,
       detail,
       isCurrent,
+      progress,
     };
   }),
 );
 
-function buildStageDetail(state: Stage["state"], isCurrent: boolean): string {
+function buildStageDetail(
+  state: Stage["state"],
+  isCurrent: boolean,
+  progress: number | null,
+): string {
   if (state === "completed") return "Этап успешно завершён";
   if (state === "error") return "На этом этапе произошла ошибка";
 
   if (!isCurrent) return "Ожидает запуска";
+
+  // Этап передачи файла на сервер: показываем процент загрузки.
+  if (progress !== null) {
+    return progress >= 100
+      ? "Файл передан, начинаем обработку…"
+      : `Передача файла на сервер — ${progress}%`;
+  }
 
   if (state === "pending") {
     if (queueBefore.value > 0) {
@@ -224,8 +262,45 @@ function startElapsedTimer(): void {
 }
 
 onMounted(async () => {
+  // ----- Фаза передачи файла на сервер (псевдо-ID "uploading") -----
+  if (isUploadingPhase.value) {
+    const upload = tasksStore.activeUpload;
+
+    // Прямой заход по ссылке /records/uploading без активной загрузки — некуда вести.
+    if (!upload) {
+      void router.replace({ name: "Dashboard" });
+      return;
+    }
+
+    isLoading.value = false;
+    startElapsedTimer();
+
+    try {
+      const response = await upload.promise;
+      if (disposed) return;
+      // Файл передан — заменяем псевдо-ID на настоящий и продолжаем как обычно.
+      await router.replace({
+        name: "RecordProcessingDetails",
+        params: { id: response.task_id },
+      });
+      // taskId пересчитается из route; запускаем обычную инициализацию.
+      await initTask(response.task_id, false);
+    } catch {
+      if (disposed) return;
+      error.value = tasksStore.activeUpload?.error ?? "Не удалось загрузить запись";
+    }
+    return;
+  }
+
+  // ----- Обычная инициализация по реальному task_id -----
+  await initTask(taskId.value);
+});
+
+async function initTask(id: string, showLoading = true): Promise<void> {
+  if (showLoading) isLoading.value = true;
   try {
-    const task = await tasksStore.fetchTask(taskId.value);
+    const task = await tasksStore.fetchTask(id);
+    if (disposed) return;
 
     if (isDone(task.status)) {
       void router.replace({ name: "RecordDetails", params: { id: task.task_id } });
@@ -259,20 +334,23 @@ onMounted(async () => {
       },
     });
   } catch (err: unknown) {
+    if (disposed) return;
     error.value =
       tasksStore.currentError ??
       (err instanceof Error ? err.message : "Не удалось загрузить задачу");
     isLoading.value = false;
   }
-});
+}
 
 onUnmounted(() => {
+  disposed = true;
   if (elapsedTimer !== null) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
   }
   stopPoll?.();
   tasksStore.stopPolling();
+  tasksStore.clearActiveUpload();
 });
 
 // Подсветка состояния — на основании сводного UI-статуса.
@@ -304,7 +382,7 @@ const isKnownPipelineStatus = computed(() => {
         </button>
         <p class="text-sm text-gray-500 dark:text-gray-400">Запись в процессе обработки</p>
         <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-          {{ tasksStore.currentTask?.task_name || "Запись" }}
+          {{ displayName }}
         </h1>
         <p
           v-if="currentStatus"
@@ -469,6 +547,17 @@ const isKnownPipelineStatus = computed(() => {
                     >
                       {{ stage.detail }}
                     </p>
+
+                    <!-- Прогресс передачи файла на сервер -->
+                    <div
+                      v-if="stage.progress !== null"
+                      class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-yellow-100 dark:bg-yellow-500/20"
+                    >
+                      <div
+                        class="h-full rounded-full bg-yellow-500 transition-[width] duration-200 dark:bg-yellow-400"
+                        :style="{ width: `${stage.progress}%` }"
+                      />
+                    </div>
                   </div>
                 </div>
 

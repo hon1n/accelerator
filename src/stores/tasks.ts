@@ -14,6 +14,13 @@ import { isDone, isError as isErrorStatus } from "../utils/taskStatus";
 
 const STATUS_POLL_INTERVAL_MS = 5000;
 
+/**
+ * Псевдо-ID задачи, под которым открывается экран обработки, пока файл ещё
+ * передаётся на сервер и реальный task_id неизвестен. Как только upload
+ * завершится, экран заменит его на настоящий ID через router.replace.
+ */
+export const UPLOADING_TASK_ID = "uploading";
+
 interface ListState {
   groupId: string;
   page: number;
@@ -36,6 +43,20 @@ export const useTasksStore = defineStore("tasks", () => {
   // ---------- мутации ----------
   const isUploading = ref(false);
   const isMutating = ref(false);
+
+  // ---------- активная фоновая загрузка файла ----------
+  // Передача файла на сервер может быть долгой, поэтому экран обработки
+  // открывается сразу, а сюда складывается прогресс и обещание с реальным
+  // task_id, который придёт от бекенда по завершении передачи.
+  interface ActiveUpload {
+    taskName: string;
+    fileName: string;
+    groupId: string;
+    progress: number;
+    promise: Promise<UploadTaskResponse>;
+    error: string | null;
+  }
+  const activeUpload = ref<ActiveUpload | null>(null);
 
   // ---------- поллинг статуса ----------
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -90,40 +111,93 @@ export const useTasksStore = defineStore("tasks", () => {
 
     try {
       const response = await tasksService.upload(groupId, audio, data);
-
-      // Локально вставим заглушку списка, чтобы карточка появилась сразу.
-      const placeholder: TaskDto = {
-        task_id: response.task_id,
-        user_id: "",
-        group_id: groupId,
-        task_name: response.task_name,
-        description: response.description,
-        meeting_date: response.meeting_date,
-        pattern_id: response.pattern_id,
-        status: response.status,
-        result: null,
-        original_filename: response.original_filename,
-        duration_seconds: 0,
-        created_at: response.created_at,
-        updated_at: response.created_at,
-        started_at: "",
-        completed_at: "",
-        change_flag: response.change_flag,
-      };
-
-      const idx = tasks.value.findIndex((t) => t.task_id === response.task_id);
-      if (idx >= 0) {
-        tasks.value[idx] = { ...tasks.value[idx], ...placeholder };
-      } else {
-        tasks.value = [placeholder, ...tasks.value];
-      }
-
+      registerUploadedTask(groupId, response);
       return response;
     } catch (err: unknown) {
       error.value = extractApiErrorMessage(err, "Не удалось загрузить запись");
       throw err;
     } finally {
       isUploading.value = false;
+    }
+  }
+
+  /**
+   * Запускает передачу файла на сервер в фоне и СРАЗУ возвращает управление,
+   * чтобы можно было открыть экран обработки, не дожидаясь окончания загрузки.
+   * Реальный task_id придёт позже — за ним нужно дождаться `activeUpload.promise`.
+   */
+  function startUpload(
+    groupId: string,
+    audio: File,
+    data: UploadTaskData,
+  ): ActiveUpload {
+    isUploading.value = true;
+    error.value = null;
+
+    const promise = tasksService
+      .upload(groupId, audio, data, (percent) => {
+        if (activeUpload.value) activeUpload.value.progress = percent;
+      })
+      .then((response) => {
+        registerUploadedTask(groupId, response);
+        if (activeUpload.value) activeUpload.value.progress = 100;
+        return response;
+      })
+      .catch((err: unknown) => {
+        const message = extractApiErrorMessage(err, "Не удалось загрузить запись");
+        error.value = message;
+        if (activeUpload.value) activeUpload.value.error = message;
+        throw err;
+      })
+      .finally(() => {
+        isUploading.value = false;
+      });
+
+    const upload: ActiveUpload = {
+      taskName: data.task_name,
+      fileName: audio.name,
+      groupId,
+      progress: 0,
+      promise,
+      error: null,
+    };
+    activeUpload.value = upload;
+    return upload;
+  }
+
+  function clearActiveUpload(): void {
+    activeUpload.value = null;
+  }
+
+  /** Вставляет/обновляет задачу в списке после успешной передачи файла. */
+  function registerUploadedTask(
+    groupId: string,
+    response: UploadTaskResponse,
+  ): void {
+    const placeholder: TaskDto = {
+      task_id: response.task_id,
+      user_id: "",
+      group_id: groupId,
+      task_name: response.task_name,
+      description: response.description,
+      meeting_date: response.meeting_date,
+      pattern_id: response.pattern_id,
+      status: response.status,
+      result: null,
+      original_filename: response.original_filename,
+      duration_seconds: 0,
+      created_at: response.created_at,
+      updated_at: response.created_at,
+      started_at: "",
+      completed_at: "",
+      change_flag: response.change_flag,
+    };
+
+    const idx = tasks.value.findIndex((t) => t.task_id === response.task_id);
+    if (idx >= 0) {
+      tasks.value[idx] = { ...tasks.value[idx], ...placeholder };
+    } else {
+      tasks.value = [placeholder, ...tasks.value];
     }
   }
 
@@ -267,6 +341,7 @@ export const useTasksStore = defineStore("tasks", () => {
     currentStatus.value = null;
     error.value = null;
     currentError.value = null;
+    activeUpload.value = null;
   }
 
   return {
@@ -282,6 +357,7 @@ export const useTasksStore = defineStore("tasks", () => {
     currentError,
     isUploading,
     isMutating,
+    activeUpload,
     // actions
     fetchTasks,
     fetchTask,
@@ -289,6 +365,8 @@ export const useTasksStore = defineStore("tasks", () => {
     pollStatus,
     stopPolling,
     uploadTask,
+    startUpload,
+    clearActiveUpload,
     updateTask,
     deleteTask,
     reset,

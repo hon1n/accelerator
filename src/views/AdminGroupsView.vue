@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { Plus, Search, Edit, Trash2, Users, Calendar, Crown, UserPlus, ShieldCheck } from "@lucide/vue";
+import { Plus, Search, Edit, Trash2, Users, Calendar, Crown, UserPlus, ShieldCheck, Fingerprint } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Button from "../components/ui/Button.vue";
@@ -99,6 +99,47 @@ const adminOwnerOptions = computed(() =>
 
 const memberSearchQuery = ref("");
 const pendingMemberId = ref<string | null>(null);
+
+// Админ видит только пользователей из общих с ним групп, поэтому добавить
+// нового участника через поиск он не всегда может. Для этого даём отдельное
+// поле — добавление по идентификатору пользователя (UUID).
+const memberIdInput = ref("");
+const isAddingById = ref(false);
+
+// Бэкенд валидирует userID как uuid4, поэтому проверяем формат на клиенте,
+// чтобы не отправлять заведомо некорректный запрос.
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const handleAddMemberById = async () => {
+  const userId = memberIdInput.value.trim();
+  membersError.value = null;
+
+  if (!userId) {
+    membersError.value = "Укажите идентификатор пользователя";
+    return;
+  }
+
+  if (!UUID_REGEX.test(userId)) {
+    membersError.value = "Некорректный идентификатор пользователя";
+    return;
+  }
+
+  if (currentMembers.value.some((member) => member.user_id === userId)) {
+    membersError.value = "Пользователь уже состоит в группе";
+    return;
+  }
+
+  isAddingById.value = true;
+  try {
+    await handleAddMember(userId);
+    if (!membersError.value) {
+      memberIdInput.value = "";
+    }
+  } finally {
+    isAddingById.value = false;
+  }
+};
 
 const roleLabels: Record<string, string> = {
   creator: "Создатель",
@@ -265,6 +306,7 @@ const openMembersModal = async (groupId: string) => {
   selectedGroupId.value = groupId;
   membersError.value = null;
   memberSearchQuery.value = "";
+  memberIdInput.value = "";
   await groupsStore.fetchGroupMembers(groupId);
   showMembersModal.value = true;
 };
@@ -606,6 +648,44 @@ useAutoRefresh(async () => {
               {{ memberSearchQuery ? "Никого не найдено" : "Все доступные пользователи уже в группе" }}
             </div>
           </div>
+        </div>
+
+        <!-- Add Member By Identifier (только для администраторов) -->
+        <div
+          v-if="!isCreator"
+          class="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-dark-border dark:bg-white/[0.02]"
+        >
+          <div class="mb-1 flex items-center gap-2">
+            <Fingerprint :size="16" class="text-blue-600 dark:text-white" />
+            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+              Добавить по идентификатору
+            </h4>
+          </div>
+          <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            Если пользователя нет в списке выше, добавьте его по идентификатору (UUID).
+          </p>
+
+          <form class="flex items-start gap-2" @submit.prevent="handleAddMemberById">
+            <div class="flex-1">
+              <Input
+                v-model="memberIdInput"
+                placeholder="Например: 123e4567-e89b-42d3-a456-426614174000"
+                hide-label
+                :disabled="isAddingById"
+                @input="membersError = null"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="md"
+              :is-loading="isAddingById"
+              :disabled="!memberIdInput.trim()"
+              class="flex-shrink-0"
+            >
+              <Plus :size="16" />
+              Добавить
+            </Button>
+          </form>
         </div>
 
         <!-- Members List -->

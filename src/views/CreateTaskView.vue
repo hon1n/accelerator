@@ -10,10 +10,9 @@ import DatePicker from "../components/ui/DatePicker.vue";
 import Textarea from "../components/ui/Textarea.vue";
 import Button from "../components/ui/Button.vue";
 import FormError from "../components/ui/FormError.vue";
-import { extractApiErrorMessage } from "../api";
 import { useGroupsStore } from "../stores/groups";
 import { usePatternsStore } from "../stores/patterns";
-import { useTasksStore } from "../stores/tasks";
+import { useTasksStore, UPLOADING_TASK_ID } from "../stores/tasks";
 import { useAutoRefresh } from "../composables/useAutoRefresh";
 
 const router = useRouter();
@@ -122,23 +121,21 @@ const handleSubmit = async () => {
   if (!isFormValid.value) return;
   error.value = null;
 
-  try {
-    const meetingDate = new Date(`${form.value.meetingDate}T12:00:00`).toISOString();
+  const meetingDate = new Date(`${form.value.meetingDate}T12:00:00`).toISOString();
 
-    const response = await tasksStore.uploadTask(form.value.groupId, form.value.file!, {
-      task_name: form.value.taskName.trim(),
-      description: form.value.description.trim(),
-      meeting_date: meetingDate,
-      pattern_id: form.value.patternId,
-    });
+  // Запускаем передачу файла в фоне и сразу уходим на экран обработки —
+  // реальный task_id придёт позже, экран подхватит его сам.
+  tasksStore.startUpload(form.value.groupId, form.value.file!, {
+    task_name: form.value.taskName.trim(),
+    description: form.value.description.trim(),
+    meeting_date: meetingDate,
+    pattern_id: form.value.patternId,
+  });
 
-    await router.push({
-      name: "RecordProcessingDetails",
-      params: { id: response.task_id },
-    });
-  } catch (err: unknown) {
-    error.value = extractApiErrorMessage(err, "Не удалось создать запись");
-  }
+  await router.push({
+    name: "RecordProcessingDetails",
+    params: { id: UPLOADING_TASK_ID },
+  });
 };
 
 onMounted(async () => {

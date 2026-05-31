@@ -579,6 +579,7 @@ export const mockTasksService = {
     groupId: string,
     audio: File,
     data: UploadTaskData,
+    onProgress?: (percent: number) => void,
   ): Promise<UploadTaskResponse> {
     ensureSeeded();
     tickAll();
@@ -620,6 +621,18 @@ export const mockTasksService = {
       created_at: task.created_at,
       change_flag: task.change_flag,
     };
+
+    // Имитируем прогресс загрузки, чтобы UI вёл себя как с настоящим бекендом.
+    if (onProgress) {
+      onProgress(0);
+      let percent = 0;
+      const timer = setInterval(() => {
+        percent = Math.min(100, percent + 20);
+        onProgress(percent);
+        if (percent >= 100) clearInterval(timer);
+      }, 150);
+    }
+
     return delay(response);
   },
 
