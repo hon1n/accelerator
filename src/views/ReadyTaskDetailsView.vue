@@ -6,6 +6,7 @@ import {
   Clock,
   Download,
   Edit,
+  Loader2,
   Pause,
   Play,
   SquarePen,
@@ -147,6 +148,11 @@ const isAudioReady = ref(false);
 const isPlaying = ref(false);
 const currentTime = ref(0);
 const audioDuration = ref(0);
+// Сколько секунд аудио уже загружено в буфер браузера (по диапазону, в который
+// попадает текущая позиция). Используется для индикатора загрузки на шкале.
+const bufferedSeconds = ref(0);
+// true, пока браузер ждёт данные (буфер опустел) — показываем спиннер.
+const isBuffering = ref(false);
 let didRetryAfterExpire = false;
 // Браузер для потокового/VBR-аудио часто отдаёт duration === Infinity, пока
 // файл не просканирован до конца. Этот флаг отмечает, что мы принудительно
@@ -233,6 +239,11 @@ const formattedTotal = computed(() => formatHms(totalSeconds.value));
 const progressPercent = computed(() => {
   if (totalSeconds.value <= 0) return 0;
   return Math.min(100, (currentTime.value / totalSeconds.value) * 100);
+});
+// Доля загруженного аудио для «фоновой» полоски на шкале прокрутки.
+const bufferedPercent = computed(() => {
+  if (totalSeconds.value <= 0) return 0;
+  return Math.min(100, (bufferedSeconds.value / totalSeconds.value) * 100);
 });
 const canPlay = computed(() => isAudioReady.value && totalSeconds.value > 0);
 
@@ -403,6 +414,7 @@ const onAudioLoaded = () => {
   el.volume = effectiveVolume.value;
   el.muted = isMuted.value;
   isAudioReady.value = true;
+  updateBuffered();
 };
 
 // duration становится известна после досканирования файла (см. onAudioLoaded).
@@ -427,6 +439,43 @@ const onAudioTimeUpdate = () => {
   // не отражаем это в UI.
   if (isProbingDuration) return;
   currentTime.value = el.currentTime;
+  updateBuffered();
+};
+
+// Пересчитывает, сколько аудио загружено в буфер. <audio>.buffered — это набор
+// диапазонов; берём тот, в который попадает текущая позиция, и его конец
+// считаем «загруженным до». Так индикатор корректно ведёт себя и после
+// перемотки в новую, ещё не скачанную часть файла.
+const updateBuffered = () => {
+  const el = audioEl.value;
+  if (!el) return;
+  const ranges = el.buffered;
+  let end = 0;
+  for (let i = 0; i < ranges.length; i++) {
+    if (ranges.start(i) <= el.currentTime + 0.5 && ranges.end(i) >= end) {
+      end = ranges.end(i);
+    }
+  }
+  bufferedSeconds.value = end;
+};
+
+const onAudioProgress = () => {
+  updateBuffered();
+};
+
+// Браузеру не хватает данных для продолжения — показываем индикатор загрузки.
+const onAudioWaiting = () => {
+  isBuffering.value = true;
+};
+
+// Данных снова достаточно — прячем индикатор.
+const onAudioPlaying = () => {
+  isBuffering.value = false;
+};
+
+const onAudioCanPlay = () => {
+  isBuffering.value = false;
+  updateBuffered();
 };
 
 const onAudioPlay = () => {
@@ -655,6 +704,10 @@ onUnmounted(() => {
             @loadedmetadata="onAudioLoaded"
             @durationchange="onAudioDurationChange"
             @timeupdate="onAudioTimeUpdate"
+            @progress="onAudioProgress"
+            @waiting="onAudioWaiting"
+            @playing="onAudioPlaying"
+            @canplay="onAudioCanPlay"
             @play="onAudioPlay"
             @pause="onAudioPause"
             @ended="onAudioEnded"
@@ -678,7 +731,12 @@ onUnmounted(() => {
               "
               @click="togglePlayback"
             >
-              <Play v-if="!isPlaying" :size="20" class="ml-0.5" />
+              <Loader2
+                v-if="isBuffering && isPlaying"
+                :size="20"
+                class="animate-spin"
+              />
+              <Play v-else-if="!isPlaying" :size="20" class="ml-0.5" />
               <Pause v-else :size="20" />
             </button>
 
@@ -696,6 +754,11 @@ onUnmounted(() => {
                   class="relative h-1.5 w-full rounded-full bg-gray-200 transition-all group-hover:h-2.5 dark:bg-dark-elevated"
                   :class="isScrubbing ? 'h-2.5' : ''"
                 >
+                  <!-- Загруженная (буферизованная) часть -->
+                  <div
+                    class="absolute inset-y-0 left-0 rounded-full bg-gray-300 dark:bg-white/25"
+                    :style="{ width: `${bufferedPercent}%` }"
+                  />
                   <div
                     class="absolute inset-y-0 left-0 rounded-full bg-blue-500 dark:bg-white"
                     :style="{ width: `${progressPercent}%` }"
