@@ -8,10 +8,10 @@ export const PIPELINE_STATUSES: TaskStatus[] = [
   "processing_upload",
   "pending_denoise",
   "processing_denoise",
-  "pending_transcribe",
-  "processing_transcribe",
   "pending_diarize",
   "processing_diarize",
+  "pending_transcribe",
+  "processing_transcribe",
   "pending_summarize",
   "processing_summarize",
   "done",
@@ -20,15 +20,15 @@ export const PIPELINE_STATUSES: TaskStatus[] = [
 const PROCESSING_STATUSES = new Set<TaskStatus>([
   "processing_upload",
   "processing_denoise",
-  "processing_transcribe",
   "processing_diarize",
+  "processing_transcribe",
   "processing_summarize",
 ]);
 
 const PENDING_STATUSES = new Set<TaskStatus>([
   "pending_denoise",
-  "pending_transcribe",
   "pending_diarize",
+  "pending_transcribe",
   "pending_summarize",
 ]);
 
@@ -90,14 +90,14 @@ export function stageLabel(status: TaskStatus): string {
       return "Ожидание шумоподавления";
     case "processing_denoise":
       return "Шумоподавление";
-    case "pending_transcribe":
-      return "Ожидание транскрибации";
-    case "processing_transcribe":
-      return "Транскрибация";
     case "pending_diarize":
       return "Ожидание диаризации";
     case "processing_diarize":
       return "Диаризация";
+    case "pending_transcribe":
+      return "Ожидание транскрибации";
+    case "processing_transcribe":
+      return "Транскрибация";
     case "pending_summarize":
       return "Ожидание конспектирования";
     case "processing_summarize":

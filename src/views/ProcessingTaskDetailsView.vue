@@ -85,14 +85,14 @@ const STAGE_GROUPS: Array<{
     description: "Удаляются фоновые шумы для повышения качества распознавания.",
   },
   {
-    statuses: ["pending_transcribe", "processing_transcribe"],
-    name: "Распознавание речи",
-    description: "Аудио преобразуется в текст с разметкой по времени.",
-  },
-  {
     statuses: ["pending_diarize", "processing_diarize"],
     name: "Диаризация",
     description: "Определяется количество спикеров и их реплики.",
+  },
+  {
+    statuses: ["pending_transcribe", "processing_transcribe"],
+    name: "Распознавание речи",
+    description: "Аудио преобразуется в текст с разметкой по времени.",
   },
   {
     statuses: ["pending_summarize", "processing_summarize"],

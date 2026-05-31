@@ -265,17 +265,62 @@ const togglePlayback = () => {
   }
 };
 
-const handleScrub = (event: MouseEvent) => {
-  if (totalSeconds.value <= 0) return;
-  const target = event.currentTarget as HTMLDivElement;
-  const rect = target.getBoundingClientRect();
-  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  const next = ratio * totalSeconds.value;
-  currentTime.value = next;
+// ---- Перемотка кликом и перетаскиванием ползунка ----
+// Ссылка на дорожку прогресса нужна, чтобы вычислять позицию во время
+// перетаскивания: события pointermove/up слушаются на window, поэтому
+// event.currentTarget уже не указывает на саму дорожку.
+const progressTrackEl = ref<HTMLDivElement | null>(null);
+const isScrubbing = ref(false);
+
+// Переводит горизонтальную координату курсора в секунду внутри записи.
+const timeFromClientX = (clientX: number): number | null => {
+  const el = progressTrackEl.value;
+  if (!el || totalSeconds.value <= 0) return null;
+  const rect = el.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return ratio * totalSeconds.value;
+};
+
+// Применяет позицию и к UI, и к нативному <audio>.
+const commitSeek = (seconds: number) => {
+  currentTime.value = seconds;
   const el = audioEl.value;
   if (el && Number.isFinite(el.duration)) {
-    el.currentTime = next;
+    el.currentTime = seconds;
   }
+};
+
+const onScrubPointerMove = (event: PointerEvent) => {
+  if (!isScrubbing.value) return;
+  const next = timeFromClientX(event.clientX);
+  if (next === null) return;
+  // Во время перетаскивания двигаем только визуальную позицию, чтобы не
+  // дёргать аудио на каждом пикселе — реальная перемотка случится на отпускании.
+  currentTime.value = next;
+};
+
+const stopScrubbing = (event: PointerEvent) => {
+  if (!isScrubbing.value) return;
+  isScrubbing.value = false;
+  const next = timeFromClientX(event.clientX);
+  if (next !== null) {
+    commitSeek(next);
+  }
+  window.removeEventListener("pointermove", onScrubPointerMove);
+  window.removeEventListener("pointerup", stopScrubbing);
+};
+
+const handleScrub = (event: PointerEvent) => {
+  if (!canPlay.value || totalSeconds.value <= 0) return;
+  // Предотвращаем выделение текста при перетаскивании.
+  event.preventDefault();
+  isScrubbing.value = true;
+  const next = timeFromClientX(event.clientX);
+  if (next !== null) {
+    currentTime.value = next;
+  }
+  window.addEventListener("pointermove", onScrubPointerMove);
+  window.addEventListener("pointerup", stopScrubbing);
 };
 
 // Перевод воспроизведения на заданную секунду (клик по реплике в стенограмме).
@@ -539,6 +584,9 @@ onUnmounted(() => {
     el.pause();
     el.src = "";
   }
+  // Снимаем глобальные слушатели на случай ухода со страницы во время перетаскивания.
+  window.removeEventListener("pointermove", onScrubPointerMove);
+  window.removeEventListener("pointerup", stopScrubbing);
 });
 </script>
 
@@ -640,11 +688,13 @@ onUnmounted(() => {
                 {{ formattedCurrent }}
               </span>
               <div
-                class="group relative flex-1 cursor-pointer py-2"
-                @click="handleScrub"
+                ref="progressTrackEl"
+                class="group relative flex-1 cursor-pointer touch-none select-none py-2"
+                @pointerdown="handleScrub"
               >
                 <div
                   class="relative h-1.5 w-full rounded-full bg-gray-200 transition-all group-hover:h-2.5 dark:bg-dark-elevated"
+                  :class="isScrubbing ? 'h-2.5' : ''"
                 >
                   <div
                     class="absolute inset-y-0 left-0 rounded-full bg-blue-500 dark:bg-white"
@@ -652,7 +702,13 @@ onUnmounted(() => {
                   />
                   <div
                     class="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 shadow ring-2 ring-white transition-opacity dark:bg-white dark:ring-dark-card"
-                    :class="totalSeconds > 0 ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'"
+                    :class="
+                      totalSeconds > 0
+                        ? isScrubbing
+                          ? 'opacity-100'
+                          : 'opacity-0 group-hover:opacity-100'
+                        : 'opacity-0'
+                    "
                     :style="{ left: `${progressPercent}%` }"
                   />
                 </div>
