@@ -110,34 +110,53 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  // Промис уже выполняющегося bootstrap. Нужен, чтобы параллельные вызовы
+  // (из main.ts и из router.beforeEach при загрузке/F5) НЕ делали два запроса
+  // /auth/refresh с одним и тем же refresh-токеном. Бэкенд ротирует refresh-токены:
+  // первый запрос отзывает старую сессию, поэтому второй падает с "Token revoked"
+  // и сбрасывает токены — пользователя разлогинивало после перезагрузки.
+  let bootstrapPromise: Promise<void> | null = null;
+
   /**
    * Пытается восстановить сессию при старте приложения.
    * Роль не хранится в браузере, поэтому мы вытаскиваем её из ответа /auth/refresh.
    */
-  const bootstrap = async () => {
+  const bootstrap = async (): Promise<void> => {
     if (isBootstrapped.value) return;
-    const storedRefresh = getStoredRefreshToken();
-    if (!storedRefresh) {
-      isBootstrapped.value = true;
-      return;
-    }
+    // Если bootstrap уже выполняется — переиспользуем тот же промис вместо
+    // повторного запроса refresh.
+    if (bootstrapPromise) return bootstrapPromise;
+
+    bootstrapPromise = (async () => {
+      const storedRefresh = getStoredRefreshToken();
+      if (!storedRefresh) {
+        isBootstrapped.value = true;
+        return;
+      }
+
+      try {
+        const data = await authService.refresh({ refresh_token: storedRefresh });
+        const refresh = data.refresh_token ?? storedRefresh;
+        // Сохраняем токены в том же хранилище, в котором они уже лежали.
+        const persistent = localStorage.getItem("access_token") !== null
+          || (getStoredAccessToken() === null && localStorage.getItem("refresh_token") !== null);
+        setTokens(data.access_token, refresh, persistent);
+        setRole(data.user_role);
+      } catch {
+        // Невалидный refresh — чистим всё и отправляем на логин.
+        accessToken.value = null;
+        refreshToken.value = null;
+        role.value = devRoleOverride();
+        clearStoredTokens();
+      } finally {
+        isBootstrapped.value = true;
+      }
+    })();
 
     try {
-      const data = await authService.refresh({ refresh_token: storedRefresh });
-      const refresh = data.refresh_token ?? storedRefresh;
-      // Сохраняем токены в том же хранилище, в котором они уже лежали.
-      const persistent = localStorage.getItem("access_token") !== null
-        || (getStoredAccessToken() === null && localStorage.getItem("refresh_token") !== null);
-      setTokens(data.access_token, refresh, persistent);
-      setRole(data.user_role);
-    } catch {
-      // Невалидный refresh — чистим всё и отправляем на логин.
-      accessToken.value = null;
-      refreshToken.value = null;
-      role.value = devRoleOverride();
-      clearStoredTokens();
+      await bootstrapPromise;
     } finally {
-      isBootstrapped.value = true;
+      bootstrapPromise = null;
     }
   };
 
