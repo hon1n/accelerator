@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
   authService,
   clearStoredTokens,
@@ -15,6 +15,29 @@ const REQUIRES_PASSWORD_CHANGE_KEY = "requires_password_change";
 
 function readRequiresPasswordChange(): boolean {
   return sessionStorage.getItem(REQUIRES_PASSWORD_CHANGE_KEY) === "1";
+}
+
+/**
+ * Достаёт user_id из payload JWT access-токена без обращения к бэкенду.
+ * Токен подписан и проверяется сервером — здесь мы только читаем claim.
+ */
+function userIdFromToken(token: string | null): string | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    );
+    const payload = JSON.parse(json) as { user_id?: string };
+    return payload.user_id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function persistRequiresPasswordChange(value: boolean): void {
@@ -44,6 +67,9 @@ export const useAuthStore = defineStore("auth", () => {
   // /auth/login и /auth/refresh. Здесь это просто переменная в памяти модуля,
   // недоступная пользователю через DevTools-хранилища браузера.
   const role = ref<string | null>(devRoleOverride());
+  // ID текущего пользователя, прочитанный из access-токена. Бэкенд не возвращает
+  // его отдельно, но он есть в payload JWT, поэтому достаём его оттуда.
+  const userId = computed(() => userIdFromToken(accessToken.value));
   const requiresPasswordChange = ref(readRequiresPasswordChange());
   // Признак того, что начальный refresh при загрузке приложения завершился.
   const isBootstrapped = ref(false);
@@ -186,6 +212,7 @@ export const useAuthStore = defineStore("auth", () => {
     accessToken,
     refreshToken,
     role,
+    userId,
     requiresPasswordChange,
     isBootstrapped,
     isLoading,

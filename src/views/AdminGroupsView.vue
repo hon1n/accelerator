@@ -82,6 +82,10 @@ const adminUsers = computed(() =>
 
 const ownerNameById = (ownerId: string): string | null => {
   if (!ownerId) return null;
+  // Бэкенд не отдаёт админам список других админов, поэтому владельца-админа
+  // (часто это сам текущий пользователь) не найти в usersStore. Если владелец —
+  // это мы сами, показываем «Вы» по user_id из токена.
+  if (ownerId === authStore.userId) return "Вы";
   const owner = usersStore.users.find((u) => u.user_id === ownerId);
   return owner?.full_name ?? null;
 };
