@@ -105,7 +105,7 @@ const handleDelete = (event: MouseEvent) => {
             </h3>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {{ formattedMeetingDate }}
-              <template v-if="task.duration_seconds > 0"> • {{ formattedDurationLabel }}</template>
+              <!-- <template v-if="task.duration_seconds > 0"> • {{ formattedDurationLabel }}</template> -->
             </p>
           </div>
 

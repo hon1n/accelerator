@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Plus, Save, Trash2, ArrowUp, ArrowDown } from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
@@ -34,6 +35,8 @@ interface LocalDraft {
 const patternsStore = usePatternsStore();
 const groupsStore = useGroupsStore();
 const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 
 // Креатор управляет глобальными и групповыми шаблонами целиком.
 // Админ работает только с групповыми шаблонами: может добавлять, редактировать
@@ -448,6 +451,44 @@ watch(selectedPatternId, (newId) => {
 // Группу не выбираем автоматически — пользователь должен выбрать её сам,
 // поэтому начальная инициализация groupId по списку групп больше не нужна.
 
+// Глубокая ссылка из карточки конспекта: ?patternId=...&scope=group&groupId=...
+// Открываем нужную вкладку/группу и выбираем шаблон для редактирования.
+const applyDeepLinkFromQuery = async (): Promise<boolean> => {
+  const patternId = typeof route.query.patternId === "string" ? route.query.patternId : "";
+  if (!patternId) return false;
+
+  const scope = route.query.scope === "global" ? "global" : "group";
+  const groupId = typeof route.query.groupId === "string" ? route.query.groupId : "";
+
+  // Чистим query, чтобы при дальнейшей навигации/обновлении не переоткрывать шаблон.
+  void router.replace({ query: {} });
+
+  if (scope === "global") {
+    if (!canManageGlobal.value) return false;
+    clearDrafts();
+    activeTab.value = "global";
+    resetForm();
+    await patternsStore.fetchGlobalPatterns();
+    if (displayedPatterns.value.some((p) => p.pattern_id === patternId)) {
+      selectedPatternId.value = patternId;
+      return true;
+    }
+    return false;
+  }
+
+  if (!groupId) return false;
+  clearDrafts();
+  activeTab.value = "group";
+  resetForm();
+  form.value.groupId = groupId;
+  await patternsStore.fetchGroupPatterns(groupId);
+  if (displayedPatterns.value.some((p) => p.pattern_id === patternId)) {
+    selectedPatternId.value = patternId;
+    return true;
+  }
+  return false;
+};
+
 onMounted(async () => {
   try {
     await groupsStore.fetchGroups({ force: true });
@@ -461,8 +502,18 @@ onMounted(async () => {
   } finally {
     isInitialLoading.value = false;
   }
-  
-  selectFirstPatternOrCreate();
+
+  // Если пришли по ссылке «редактировать шаблон» — открываем его напрямую.
+  let handledDeepLink = false;
+  try {
+    handledDeepLink = await applyDeepLinkFromQuery();
+  } catch (error) {
+    console.error("Failed to open pattern from query:", error);
+  }
+
+  if (!handledDeepLink) {
+    selectFirstPatternOrCreate();
+  }
 });
 
 useAutoRefresh(async () => {

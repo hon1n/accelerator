@@ -8,6 +8,7 @@ import {
   Edit,
   Pause,
   Play,
+  SquarePen,
   Trash2,
   Volume1,
   Volume2,
@@ -22,8 +23,15 @@ import Modal from "../components/ui/Modal.vue";
 import Spinner from "../components/ui/Spinner.vue";
 import FormError from "../components/ui/FormError.vue";
 import DatePicker from "../components/ui/DatePicker.vue";
-import { extractApiErrorMessage, patternsService, tasksService } from "../api";
+import {
+  extractApiErrorMessage,
+  isGlobalPattern,
+  patternsService,
+  tasksService,
+  type PatternDto,
+} from "../api";
 import { useTasksStore } from "../stores/tasks";
+import { useAuthStore } from "../stores/auth";
 import { downloadTextFile } from "../utils/download";
 import {
   formatDuration,
@@ -44,6 +52,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const tasksStore = useTasksStore();
+const authStore = useAuthStore();
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -60,6 +69,8 @@ const editForm = ref({
 });
 
 const patternName = ref<string | null>(null);
+// Полный шаблон конспекта (для перехода в конструктор и проверки прав).
+const pattern = ref<PatternDto | null>(null);
 
 const task = computed(() => tasksStore.currentTask);
 
@@ -116,6 +127,32 @@ const speakersLabel = computed(() => {
   const word = n === 1 ? "спикер" : n >= 2 && n <= 4 ? "спикера" : "спикеров";
   return `${n} ${word}`;
 });
+
+// Можно ли перейти к редактированию шаблона конспекта.
+// Обычный пользователь такой возможности не имеет вовсе.
+// Админ — только для не-глобальных (групповых) шаблонов.
+// Креатор — без ограничений.
+const canEditPattern = computed(() => {
+  if (!pattern.value) return false;
+  const role = authStore.role;
+  if (role === "creator") return true;
+  if (role === "admin") return !isGlobalPattern(pattern.value);
+  return false;
+});
+
+// Переход в конструктор шаблонов с предвыбором нужного шаблона.
+const goToPatternEditor = () => {
+  if (!pattern.value || !canEditPattern.value) return;
+  const isGlobal = isGlobalPattern(pattern.value);
+  void router.push({
+    name: "AdminPatterns",
+    query: {
+      patternId: pattern.value.pattern_id,
+      scope: isGlobal ? "global" : "group",
+      ...(isGlobal ? {} : { groupId: pattern.value.group_id ?? "" }),
+    },
+  });
+};
 
 // ---- Аудиоплеер: presigned URL берём отдельным запросом к
 // GET /api/v1/tasks/{taskID}/audio. Реальное воспроизведение делает
@@ -497,8 +534,9 @@ onMounted(async () => {
 
     if (fetched.pattern_id) {
       try {
-        const pattern = await patternsService.getPatternById(fetched.pattern_id);
-        patternName.value = pattern.name;
+        const loadedPattern = await patternsService.getPatternById(fetched.pattern_id);
+        pattern.value = loadedPattern;
+        patternName.value = loadedPattern.name;
       } catch {
         // если шаблон удалён или недоступен — просто не показываем
       }
@@ -557,8 +595,8 @@ onUnmounted(() => {
               <Clock :size="14" class="shrink-0" />
               <span>
                 {{ formattedMeetingDate }}
-                <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template>
-                <template v-if="speakersLabel"> • {{ speakersLabel }}</template>
+                <!-- <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template> -->
+                <!-- <template v-if="speakersLabel"> • {{ speakersLabel }}</template> -->
               </span>
             </p>
           </div>
@@ -737,7 +775,20 @@ onUnmounted(() => {
             <div class="mb-2 flex shrink-0 items-start justify-between gap-3">
               <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Конспект</h2>
-                <p v-if="patternName" class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                <button
+                  v-if="patternName && canEditPattern"
+                  type="button"
+                  class="group mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs text-blue-600 transition-colors hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                  title="Редактировать шаблон"
+                  @click="goToPatternEditor"
+                >
+                  <span>Шаблон: {{ patternName }}</span>
+                  <SquarePen :size="12" class="shrink-0" />
+                </button>
+                <p
+                  v-else-if="patternName"
+                  class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                >
                   Шаблон: {{ patternName }}
                 </p>
               </div>
