@@ -78,6 +78,7 @@ const routes: Array<RouteRecordRaw> = [
       title: "Управление пользователями",
       requiresAuth: true,
       requiresAdmin: true,
+      requiresCreator: true,
     },
   },
   {
@@ -179,6 +180,12 @@ router.beforeEach(async (to) => {
     if (userRole !== "admin" && userRole !== "creator") {
       return { name: "Dashboard" };
     }
+  }
+
+  // Некоторые разделы (управление пользователями) доступны только креатору.
+  const requiresCreator = to.matched.some((record) => record.meta.requiresCreator);
+  if (requiresCreator && authStore.role !== "creator") {
+    return { name: "Dashboard" };
   }
 
   return true;

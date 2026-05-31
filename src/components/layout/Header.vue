@@ -35,6 +35,11 @@ const isAdmin = computed(() => {
   return authStore.role === "admin" || authStore.role === "creator";
 });
 
+// Только креатор управляет пользователями. Админ может лишь добавлять
+// пользователей в группы (через раздел «Группы»), поэтому вкладку
+// «Пользователи» ему не показываем.
+const isCreator = computed(() => authStore.role === "creator");
+
 const containerClass = computed(
   () =>
     `mx-auto flex h-16 w-full ${props.maxWidth} items-center justify-between px-4 sm:px-6 lg:px-8`,
@@ -85,6 +90,7 @@ const handleLogout = () => {
         </router-link>
 
         <router-link
+          v-if="isCreator"
           to="/admin/users"
           :class="[
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',

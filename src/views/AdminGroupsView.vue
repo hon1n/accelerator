@@ -12,6 +12,7 @@ import Spinner from "../components/ui/Spinner.vue";
 import FormError from "../components/ui/FormError.vue";
 import { useGroupsStore, groupColorClass, groupPrefix } from "../stores/groups";
 import { useUsersStore } from "../stores/users";
+import { useAuthStore } from "../stores/auth";
 import { extractApiErrorMessage } from "../api";
 import { getInitials } from "../utils/initials.ts"
 import { formatMeetingDate } from "../utils/taskStatus";
@@ -20,6 +21,11 @@ import { useAutoRefresh } from "../composables/useAutoRefresh";
 const route = useRoute();
 const groupsStore = useGroupsStore();
 const usersStore = useUsersStore();
+const authStore = useAuthStore();
+
+// Админ может только добавлять участников в группы. Создание, редактирование и
+// удаление групп, а также удаление участников — только для креатора.
+const isCreator = computed(() => authStore.role === "creator");
 
 const searchQuery = ref("");
 const showCreateModal = ref(false);
@@ -62,6 +68,11 @@ const selectedGroup = computed(() => {
 });
 
 const availableUsers = computed(() => {
+  // Креатор добавляет участников (user), назначение администраторов идёт через
+  // владельца группы. Админ может добавлять только обычных пользователей.
+  if (!isCreator.value) {
+    return usersStore.users.filter((u) => u.role === "user");
+  }
   return usersStore.users.filter((u) => u.role === "user" || u.role === "admin");
 });
 
@@ -172,7 +183,9 @@ const handleEditGroup = async () => {
     await groupsStore.updateGroup(selectedGroupId.value, {
       name: editForm.value.name.trim(),
       description: editForm.value.description.trim(),
-      owner_id: editForm.value.ownerId,
+      // Только креатор может менять владельца. Бэкенд возвращает 403, если
+      // админ попытается передать owner_id, поэтому для админа это поле не шлём.
+      ...(isCreator.value ? { owner_id: editForm.value.ownerId } : {}),
     });
 
     showEditModal.value = false;
@@ -293,7 +306,7 @@ useAutoRefresh(async () => {
           <p class="text-sm text-gray-500 dark:text-gray-400">Управление группами</p>
           <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Группы</h1>
         </div>
-        <Button @click="createError = null; showCreateModal = true">
+        <Button v-if="isCreator" @click="createError = null; showCreateModal = true">
           <Plus :size="18" />
           Создать группу
         </Button>
@@ -401,7 +414,7 @@ useAutoRefresh(async () => {
               <Edit :size="16" />
             </Button>
             <Button
-              v-if="group.can_delete"
+              v-if="isCreator && group.can_delete"
               variant="outline"
               size="sm"
               title="Удалить"
@@ -458,7 +471,7 @@ useAutoRefresh(async () => {
           <Input v-model="editForm.description" label="Описание" />
         </div>
 
-        <div>
+        <div v-if="isCreator">
           <Select
             v-model="editForm.ownerId"
             label="Владелец"
@@ -648,7 +661,7 @@ useAutoRefresh(async () => {
               </div>
 
               <Button
-                v-if="member.user_id !== groupsStore.activeGroupDetails.owner_id"
+                v-if="isCreator && member.user_id !== groupsStore.activeGroupDetails.owner_id"
                 variant="ghost"
                 size="sm"
                 title="Удалить из группы"
@@ -658,7 +671,7 @@ useAutoRefresh(async () => {
                 <Trash2 :size="16" />
               </Button>
               <span
-                v-else
+                v-else-if="member.user_id === groupsStore.activeGroupDetails.owner_id"
                 class="flex flex-shrink-0 items-center gap-1 px-2 text-xs font-medium text-amber-600 dark:text-amber-400"
                 title="Владельца нельзя удалить"
               >

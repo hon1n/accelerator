@@ -99,6 +99,10 @@ const isPlaying = ref(false);
 const currentTime = ref(0);
 const audioDuration = ref(0);
 let didRetryAfterExpire = false;
+// Браузер для потокового/VBR-аудио часто отдаёт duration === Infinity, пока
+// файл не просканирован до конца. Этот флаг отмечает, что мы принудительно
+// перемотали в конец, чтобы вынудить <audio> вычислить настоящую длительность.
+let isProbingDuration = false;
 
 // ---- Скорость воспроизведения ----
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -164,8 +168,16 @@ const toggleMute = () => {
 };
 
 const totalSeconds = computed(() => {
-  if (audioDuration.value > 0) return audioDuration.value;
-  return task.value?.duration_seconds ?? 0;
+  // Источник истины по длительности — значение с бэка (ffprobe считает его
+  // точно при загрузке). Браузерный <audio>.duration для потокового/VBR-аудио
+  // часто бывает неверным или Infinity, поэтому используем его только как
+  // запасной вариант, если бэк длительность не прислал.
+  const backend = task.value?.duration_seconds ?? 0;
+  if (backend > 0) return backend;
+  if (Number.isFinite(audioDuration.value) && audioDuration.value > 0) {
+    return audioDuration.value;
+  }
+  return 0;
 });
 const formattedCurrent = computed(() => formatHms(currentTime.value));
 const formattedTotal = computed(() => formatHms(totalSeconds.value));
@@ -211,8 +223,9 @@ const handleScrub = (event: MouseEvent) => {
   const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
   const next = ratio * totalSeconds.value;
   currentTime.value = next;
-  if (audioEl.value && Number.isFinite(audioEl.value.duration)) {
-    audioEl.value.currentTime = next;
+  const el = audioEl.value;
+  if (el && Number.isFinite(el.duration)) {
+    el.currentTime = next;
   }
 };
 
@@ -277,6 +290,17 @@ const onAudioLoaded = () => {
   if (!el) return;
   if (Number.isFinite(el.duration) && el.duration > 0) {
     audioDuration.value = el.duration;
+  } else if (el.duration === Infinity) {
+    // Поточный/VBR-источник: браузер не знает длительность. Принудительно
+    // перематываем в «конец» — это вынуждает <audio> досканировать файл и
+    // выставить настоящую duration (придёт в событии durationchange). Без
+    // этого перемотка по клику не работает (el.currentTime игнорируется).
+    isProbingDuration = true;
+    try {
+      el.currentTime = 1e101;
+    } catch {
+      isProbingDuration = false;
+    }
   }
   // <audio> сбрасывает playbackRate на 1 при загрузке нового источника —
   // восстанавливаем выбранную пользователем скорость.
@@ -287,9 +311,28 @@ const onAudioLoaded = () => {
   isAudioReady.value = true;
 };
 
+// duration становится известна после досканирования файла (см. onAudioLoaded).
+const onAudioDurationChange = () => {
+  const el = audioEl.value;
+  if (!el) return;
+  if (Number.isFinite(el.duration) && el.duration > 0) {
+    audioDuration.value = el.duration;
+    if (isProbingDuration) {
+      // Возвращаемся в начало после зондирования длительности.
+      isProbingDuration = false;
+      el.currentTime = 0;
+      currentTime.value = 0;
+    }
+  }
+};
+
 const onAudioTimeUpdate = () => {
-  if (!audioEl.value) return;
-  currentTime.value = audioEl.value.currentTime;
+  const el = audioEl.value;
+  if (!el) return;
+  // Во время зондирования длительности currentTime скачет в конец файла —
+  // не отражаем это в UI.
+  if (isProbingDuration) return;
+  currentTime.value = el.currentTime;
 };
 
 const onAudioPlay = () => {
@@ -514,6 +557,7 @@ onUnmounted(() => {
             preload="metadata"
             class="hidden"
             @loadedmetadata="onAudioLoaded"
+            @durationchange="onAudioDurationChange"
             @timeupdate="onAudioTimeUpdate"
             @play="onAudioPlay"
             @pause="onAudioPause"

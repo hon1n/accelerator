@@ -12,6 +12,7 @@ import Spinner from "../components/ui/Spinner.vue";
 import FormError from "../components/ui/FormError.vue";
 import { usePatternsStore, buildCreatePayload, buildUpdatePayload, patternSaveErrorMessage } from "../stores/patterns";
 import { useGroupsStore } from "../stores/groups";
+import { useAuthStore } from "../stores/auth";
 import { extractApiErrorMessage } from "../api";
 import type { PatternDto } from "../api";
 import { useAutoRefresh } from "../composables/useAutoRefresh";
@@ -32,9 +33,16 @@ interface LocalDraft {
 
 const patternsStore = usePatternsStore();
 const groupsStore = useGroupsStore();
+const authStore = useAuthStore();
+
+// Креатор управляет глобальными и групповыми шаблонами целиком.
+// Админ работает только с групповыми шаблонами: может добавлять, редактировать
+// и удалять их, но вкладка «Глобальные» ему недоступна.
+const isCreator = computed(() => authStore.role === "creator");
+const canManageGlobal = computed(() => isCreator.value);
 
 const isInitialLoading = ref(true);
-const activeTab = ref<"global" | "group">("global");
+const activeTab = ref<"global" | "group">(isCreator.value ? "global" : "group");
 const selectedPatternId = ref<string | null>(null);
 const isEditing = ref(false);
 const showDeleteModal = ref(false);
@@ -181,16 +189,14 @@ const loadPatternToForm = (pattern: PatternDto & { isDraft?: true }) => {
     return;
   }
   
-  // Парсим промпт для извлечения стиля и детализации
+  // Парсим промпт для извлечения стиля и детализации.
+  // Важно: \w в JS не охватывает кириллицу, поэтому забираем всё до точки/конца строки.
   const summaryPrompt = pattern.summary_prompt;
-  if (summaryPrompt.includes("Стиль:")) {
-    const styleMatch = summaryPrompt.match(/Стиль:\s*(\w+)/);
-    if (styleMatch) form.value.style = styleMatch[1];
-  }
-  if (summaryPrompt.includes("Детализация:")) {
-    const detailsMatch = summaryPrompt.match(/Детализация:\s*(\w+)/);
-    if (detailsMatch) form.value.details = detailsMatch[1];
-  }
+  const styleMatch = summaryPrompt.match(/Стиль:\s*([^.\n]+)/);
+  if (styleMatch) form.value.style = styleMatch[1].trim();
+
+  const detailsMatch = summaryPrompt.match(/Детализация:\s*([^.\n]+)/);
+  if (detailsMatch) form.value.details = detailsMatch[1].trim();
   
   form.value.sections = parseSectionsFromPrompt(pattern.additional_prompt);
   isEditing.value = true;
@@ -351,6 +357,9 @@ const selectFirstPatternOrCreate = () => {
 };
 
 const handleTabChange = async (tab: "global" | "group") => {
+  // Админ не может работать с глобальными шаблонами.
+  if (tab === "global" && !canManageGlobal.value) return;
+
   // Очищаем черновики при смене вкладки
   clearDrafts();
   
@@ -403,7 +412,14 @@ watch(
 onMounted(async () => {
   try {
     await groupsStore.fetchGroups({ force: true });
-    await patternsStore.fetchGlobalPatterns({ force: true });
+    if (canManageGlobal.value) {
+      await patternsStore.fetchGlobalPatterns({ force: true });
+    } else if (groupsStore.groups.length > 0) {
+      // Админ работает только с групповыми шаблонами.
+      const firstGroupId = groupsStore.groups[0].group_id;
+      form.value.groupId = firstGroupId;
+      await patternsStore.fetchGroupPatterns(firstGroupId, { force: true });
+    }
   } catch (error) {
     console.error("Failed to load initial data:", error);
   } finally {
@@ -454,6 +470,7 @@ useAutoRefresh(async () => {
       <!-- Tabs -->
       <div class="mb-6 flex shrink-0 gap-2">
         <button
+          v-if="canManageGlobal"
           :class="[
             'cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors',
             activeTab === 'global'

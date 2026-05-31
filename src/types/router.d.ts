@@ -7,5 +7,6 @@ declare module "vue-router" {
     guestOnly?: boolean;
     requiresPasswordChange?: boolean;
     requiresAdmin?: boolean;
+    requiresCreator?: boolean;
   }
 }
