@@ -1,7 +1,18 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, Clock, Download, Edit, Pause, Play, Trash2 } from "@lucide/vue";
+import {
+  ArrowLeft,
+  Clock,
+  Download,
+  Edit,
+  Pause,
+  Play,
+  Trash2,
+  Volume1,
+  Volume2,
+  VolumeX,
+} from "@lucide/vue";
 import Header from "../components/layout/Header.vue";
 import Card from "../components/ui/Card.vue";
 import Button from "../components/ui/Button.vue";
@@ -106,6 +117,52 @@ const cyclePlaybackRate = () => {
   applyPlaybackRate();
 };
 
+// ---- Громкость воспроизведения ----
+// volume хранится в диапазоне 0..1. При mute запоминаем предыдущее
+// значение, чтобы вернуть его при повторном клике по иконке.
+const volume = ref(1);
+const isMuted = ref(false);
+let volumeBeforeMute = 1;
+
+const showVolumeSlider = ref(false);
+
+const effectiveVolume = computed(() => (isMuted.value ? 0 : volume.value));
+
+const volumePercent = computed(() => Math.round(effectiveVolume.value * 100));
+
+const applyVolume = () => {
+  if (audioEl.value) {
+    audioEl.value.volume = effectiveVolume.value;
+    audioEl.value.muted = isMuted.value;
+  }
+};
+
+const setVolume = (next: number) => {
+  const clamped = Math.min(1, Math.max(0, next));
+  volume.value = clamped;
+  // Любое перемещение ползунка снимает mute (кроме перетаскивания в ноль).
+  isMuted.value = clamped === 0;
+  applyVolume();
+};
+
+const onVolumeInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  setVolume(Number(target.value) / 100);
+};
+
+const toggleMute = () => {
+  if (isMuted.value) {
+    isMuted.value = false;
+    if (volume.value === 0) {
+      volume.value = volumeBeforeMute > 0 ? volumeBeforeMute : 1;
+    }
+  } else {
+    volumeBeforeMute = volume.value;
+    isMuted.value = true;
+  }
+  applyVolume();
+};
+
 const totalSeconds = computed(() => {
   if (audioDuration.value > 0) return audioDuration.value;
   return task.value?.duration_seconds ?? 0;
@@ -159,6 +216,62 @@ const handleScrub = (event: MouseEvent) => {
   }
 };
 
+// Перевод воспроизведения на заданную секунду (клик по реплике в стенограмме).
+// Если аудио ещё не готово или метка времени неизвестна — тихо выходим.
+const seekTo = (seconds: number | null, autoPlay = true) => {
+  if (seconds === null || !Number.isFinite(seconds)) return;
+  if (!canPlay.value) return;
+  const next = Math.min(Math.max(0, seconds), totalSeconds.value);
+  currentTime.value = next;
+  const el = audioEl.value;
+  if (el && Number.isFinite(el.duration)) {
+    el.currentTime = next;
+    if (autoPlay && el.paused) {
+      void el.play().catch(() => {
+        /* автозапуск может быть заблокирован — не критично */
+      });
+    }
+  }
+};
+
+// Индекс активной реплики: последняя, чьё время начала уже наступило.
+const activeEntryIndex = computed(() => {
+  const entries = normalizedResult.value.transcript;
+  if (entries.length === 0) return -1;
+  let active = -1;
+  for (let i = 0; i < entries.length; i++) {
+    const start = entries[i].startSeconds;
+    if (start !== null && start <= currentTime.value + 0.25) {
+      active = i;
+    }
+  }
+  return active;
+});
+
+// Регистр DOM-элементов реплик для автопрокрутки к активной строке.
+const entryRefs = new Map<number, HTMLElement>();
+const setEntryRef = (el: unknown, index: number) => {
+  const node =
+    el && typeof el === "object" && "$el" in el
+      ? ((el as { $el: HTMLElement }).$el)
+      : (el as HTMLElement | null);
+  if (node instanceof HTMLElement) {
+    entryRefs.set(index, node);
+  } else {
+    entryRefs.delete(index);
+  }
+};
+
+// Подсвеченную реплику держим в поле зрения, но не дёргаем экран,
+// если пользователь сам её только что выбрал и она уже видна.
+watch(activeEntryIndex, (index) => {
+  if (index < 0) return;
+  const node = entryRefs.get(index);
+  if (node) {
+    node.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+});
+
 const onAudioLoaded = () => {
   const el = audioEl.value;
   if (!el) return;
@@ -168,6 +281,9 @@ const onAudioLoaded = () => {
   // <audio> сбрасывает playbackRate на 1 при загрузке нового источника —
   // восстанавливаем выбранную пользователем скорость.
   el.playbackRate = playbackRate.value;
+  // Аналогично восстанавливаем громкость/mute.
+  el.volume = effectiveVolume.value;
+  el.muted = isMuted.value;
   isAudioReady.value = true;
 };
 
@@ -359,32 +475,58 @@ onUnmounted(() => {
           Главная
         </button>
 
-        <!-- Шапка: заголовок + плеер + действия -->
-        <div class="mb-3 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <!-- Шапка: заголовок, метаданные и действия -->
+        <div class="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div class="min-w-0 flex-1">
             <h1 class="truncate text-2xl font-bold text-gray-900 dark:text-white">
               {{ task.task_name || "Без названия" }}
             </h1>
+            <p class="mt-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+              <Clock :size="14" class="shrink-0" />
+              <span>
+                {{ formattedMeetingDate }}
+                <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template>
+                <template v-if="speakersLabel"> • {{ speakersLabel }}</template>
+              </span>
+            </p>
           </div>
 
-          <div class="flex items-center gap-3">
-            <audio
-              v-if="audioUrl"
-              ref="audioEl"
-              :src="audioUrl"
-              preload="metadata"
-              class="hidden"
-              @loadedmetadata="onAudioLoaded"
-              @timeupdate="onAudioTimeUpdate"
-              @play="onAudioPlay"
-              @pause="onAudioPause"
-              @ended="onAudioEnded"
-              @error="onAudioError"
-            />
+          <div v-if="task.change_flag" class="flex shrink-0 items-center gap-2">
+            <Button variant="outline" size="sm" @click="openEditModal">
+              <Edit :size="16" />
+              Редактировать
+            </Button>
+            <Button variant="outline" size="sm" @click="showDeleteModal = true">
+              <Trash2 :size="16" />
+              Удалить
+            </Button>
+          </div>
+        </div>
+
+        <!-- Аудиоплеер -->
+        <div
+          class="mb-6 shrink-0 rounded-2xl border border-gray-200 bg-white/80 p-3 backdrop-blur dark:border-dark-border dark:bg-dark-card/80 sm:p-4"
+        >
+          <audio
+            v-if="audioUrl"
+            ref="audioEl"
+            :src="audioUrl"
+            preload="metadata"
+            class="hidden"
+            @loadedmetadata="onAudioLoaded"
+            @timeupdate="onAudioTimeUpdate"
+            @play="onAudioPlay"
+            @pause="onAudioPause"
+            @ended="onAudioEnded"
+            @error="onAudioError"
+          />
+
+          <div class="flex items-center gap-3 sm:gap-4">
+            <!-- Play / Pause -->
             <button
               type="button"
               :disabled="!canPlay"
-              class="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-dark dark:hover:bg-gray-200"
+              class="flex h-12 w-12 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/20 transition-all hover:scale-105 hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100 dark:bg-white dark:text-dark dark:shadow-none dark:hover:bg-gray-200"
               :title="
                 audioLoadError
                   ? audioLoadError
@@ -396,71 +538,108 @@ onUnmounted(() => {
               "
               @click="togglePlayback"
             >
-              <Play v-if="!isPlaying" :size="18" />
-              <Pause v-else :size="18" />
+              <Play v-if="!isPlaying" :size="20" class="ml-0.5" />
+              <Pause v-else :size="20" />
             </button>
-            <button
-              type="button"
-              :disabled="!canPlay"
-              class="flex h-10 min-w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 px-3 text-sm font-semibold tabular-nums text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:text-gray-200 dark:hover:bg-dark-elevated"
-              title="Скорость воспроизведения"
-              @click="cyclePlaybackRate"
-            >
-              {{ formattedPlaybackRate }}
-            </button>
-            <span
-              class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 dark:border-dark-border dark:text-gray-400"
-            >
-              <Clock :size="16" />
-            </span>
 
-            <div v-if="task.change_flag" class="ml-1 flex items-center gap-2">
-              <Button variant="outline" size="sm" @click="openEditModal">
-                <Edit :size="16" />
-                Редактировать
-              </Button>
-              <Button variant="outline" size="sm" @click="showDeleteModal = true">
-                <Trash2 :size="16" />
-                Удалить
-              </Button>
+            <!-- Шкала прогресса + тайминги -->
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                {{ formattedCurrent }}
+              </span>
+              <div
+                class="group relative flex-1 cursor-pointer py-2"
+                @click="handleScrub"
+              >
+                <div
+                  class="relative h-1.5 w-full rounded-full bg-gray-200 transition-all group-hover:h-2.5 dark:bg-dark-elevated"
+                >
+                  <div
+                    class="absolute inset-y-0 left-0 rounded-full bg-blue-500 dark:bg-white"
+                    :style="{ width: `${progressPercent}%` }"
+                  />
+                  <div
+                    class="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600 shadow ring-2 ring-white transition-opacity dark:bg-white dark:ring-dark-card"
+                    :class="totalSeconds > 0 ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'"
+                    :style="{ left: `${progressPercent}%` }"
+                  />
+                </div>
+              </div>
+              <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                {{ formattedTotal }}
+              </span>
+            </div>
+
+            <!-- Громкость + скорость -->
+            <div class="flex flex-shrink-0 items-center gap-1 sm:gap-2">
+              <div
+                class="relative flex items-center"
+                @mouseenter="showVolumeSlider = true"
+                @mouseleave="showVolumeSlider = false"
+              >
+                <button
+                  type="button"
+                  :disabled="!canPlay"
+                  class="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:hover:bg-dark-elevated"
+                  :title="isMuted || effectiveVolume === 0 ? 'Включить звук' : 'Выключить звук'"
+                  @click="toggleMute"
+                >
+                  <VolumeX v-if="isMuted || effectiveVolume === 0" :size="18" />
+                  <Volume1 v-else-if="effectiveVolume < 0.5" :size="18" />
+                  <Volume2 v-else :size="18" />
+                </button>
+                <transition
+                  enter-active-class="transition duration-150 ease-out"
+                  enter-from-class="opacity-0 translate-y-1"
+                  enter-to-class="opacity-100 translate-y-0"
+                  leave-active-class="transition duration-100 ease-in"
+                  leave-from-class="opacity-100 translate-y-0"
+                  leave-to-class="opacity-0 translate-y-1"
+                >
+                  <div
+                    v-show="showVolumeSlider"
+                    class="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-lg dark:border-dark-border dark:bg-dark-card"
+                  >
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      :value="volumePercent"
+                      :disabled="!canPlay"
+                      class="volume-slider h-1.5 w-24 cursor-pointer appearance-none rounded-full disabled:cursor-not-allowed disabled:opacity-50"
+                      :style="{
+                        background: `linear-gradient(to right, var(--volume-fill) 0%, var(--volume-fill) ${volumePercent}%, var(--volume-track) ${volumePercent}%, var(--volume-track) 100%)`,
+                      }"
+                      aria-label="Громкость"
+                      @input="onVolumeInput"
+                    />
+                    <span
+                      class="w-8 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400"
+                    >
+                      {{ volumePercent }}
+                    </span>
+                  </div>
+                </transition>
+              </div>
+              <button
+                type="button"
+                :disabled="!canPlay"
+                class="flex h-10 min-w-[3rem] flex-shrink-0 cursor-pointer items-center justify-center rounded-full px-3 text-sm font-semibold tabular-nums text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:hover:bg-dark-elevated"
+                title="Скорость воспроизведения"
+                @click="cyclePlaybackRate"
+              >
+                {{ formattedPlaybackRate }}
+              </button>
             </div>
           </div>
-        </div>
 
-        <!-- Метаданные и шкала -->
-        <div class="mb-6 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ formattedMeetingDate }}
-            <template v-if="formattedDurationLabel"> • {{ formattedDurationLabel }}</template>
-            <template v-if="speakersLabel"> • {{ speakersLabel }}</template>
+          <p
+            v-if="audioLoadError"
+            class="mt-2 px-1 text-xs text-red-500 dark:text-red-400"
+          >
+            {{ audioLoadError }}
           </p>
-
-          <div class="flex items-center gap-3 lg:w-2/5">
-            <span
-              class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400"
-            >
-              {{ formattedCurrent }}
-            </span>
-            <div
-              class="relative h-1.5 flex-1 cursor-pointer rounded-full bg-gray-200 dark:bg-dark-elevated"
-              @click="handleScrub"
-            >
-              <div
-                class="absolute inset-y-0 left-0 rounded-full bg-blue-500 dark:bg-white"
-                :style="{ width: `${progressPercent}%` }"
-              />
-              <div
-                class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 transition-all dark:bg-white"
-                :class="totalSeconds > 0 ? 'h-3 w-3 opacity-100' : 'h-0 w-0 opacity-0'"
-                :style="{ left: `${progressPercent}%` }"
-              />
-            </div>
-            <span
-              class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400"
-            >
-              {{ formattedTotal }}
-            </span>
-          </div>
         </div>
 
         <p
@@ -528,11 +707,28 @@ onUnmounted(() => {
             </div>
 
             <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-              <div v-if="normalizedResult.transcript.length > 0" class="space-y-4">
-                <div
+              <div v-if="normalizedResult.transcript.length > 0" class="space-y-1">
+                <component
+                  :is="entry.startSeconds !== null && canPlay ? 'button' : 'div'"
                   v-for="(entry, index) in normalizedResult.transcript"
                   :key="index"
-                  class="space-y-2"
+                  :type="entry.startSeconds !== null && canPlay ? 'button' : undefined"
+                  :ref="(el: any) => setEntryRef(el, index)"
+                  :class="[
+                    'block w-full space-y-2 rounded-lg px-3 py-2 text-left transition-colors',
+                    entry.startSeconds !== null && canPlay
+                      ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-elevated'
+                      : '',
+                    index === activeEntryIndex
+                      ? 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30'
+                      : '',
+                  ]"
+                  :title="
+                    entry.startSeconds !== null && canPlay
+                      ? `Перейти к ${entry.timestamp || formatHms(entry.startSeconds)}`
+                      : undefined
+                  "
+                  @click="seekTo(entry.startSeconds)"
                 >
                   <div class="flex items-center justify-between gap-3">
                     <span
@@ -545,15 +741,25 @@ onUnmounted(() => {
                     </span>
                     <span
                       v-if="entry.timestamp"
-                      class="font-mono text-xs tabular-nums text-gray-400 dark:text-gray-500"
+                      class="flex items-center gap-1 text-xs tabular-nums transition-colors"
+                      :class="
+                        index === activeEntryIndex
+                          ? 'text-blue-600 dark:text-blue-300'
+                          : 'text-gray-400 dark:text-gray-500'
+                      "
                     >
+                      <Play
+                        v-if="entry.startSeconds !== null && canPlay"
+                        :size="11"
+                        class="shrink-0"
+                      />
                       {{ entry.timestamp }}
                     </span>
                   </div>
                   <p class="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
                     {{ entry.text }}
                   </p>
-                </div>
+                </component>
               </div>
               <p v-else class="text-sm text-gray-500 dark:text-gray-400">
                 Стенограмма недоступна.
@@ -653,5 +859,37 @@ onUnmounted(() => {
 }
 .summary-content > :last-child {
   margin-bottom: 0;
+}
+
+/* ---- Ползунок громкости ---- */
+.volume-slider {
+  --volume-fill: #2563eb; /* blue-600 */
+  --volume-track: #e5e7eb; /* gray-200 */
+}
+.dark .volume-slider {
+  --volume-fill: #ffffff;
+  --volume-track: #2a2a2a; /* dark-elevated */
+}
+.volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 0.75rem;
+  width: 0.75rem;
+  border-radius: 9999px;
+  background: var(--volume-fill);
+  border: none;
+  cursor: pointer;
+}
+.volume-slider::-moz-range-thumb {
+  height: 0.75rem;
+  width: 0.75rem;
+  border-radius: 9999px;
+  background: var(--volume-fill);
+  border: none;
+  cursor: pointer;
+}
+.volume-slider:disabled::-webkit-slider-thumb,
+.volume-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
 }
 </style>

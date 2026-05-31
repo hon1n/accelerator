@@ -8,6 +8,8 @@ export interface TranscriptEntry {
   speaker: string;
   timestamp: string;
   text: string;
+  /** Время начала реплики в секундах (для перехода в плеере), если известно */
+  startSeconds: number | null;
 }
 
 export interface NormalizedTaskResult {
@@ -43,6 +45,21 @@ function secondsToTimestamp(seconds: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** Парсит "HH:MM:SS" / "MM:SS" / "SS" (допускает дробные секунды) в секунды. */
+function timestampToSeconds(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(":");
+  if (parts.length === 0 || parts.length > 3) return null;
+  let seconds = 0;
+  for (const part of parts) {
+    const n = Number(part);
+    if (!Number.isFinite(n)) return null;
+    seconds = seconds * 60 + n;
+  }
+  return seconds;
+}
+
 function normalizeEntry(entry: unknown): TranscriptEntry | null {
   if (!isRecord(entry)) return null;
 
@@ -53,20 +70,29 @@ function normalizeEntry(entry: unknown): TranscriptEntry | null {
   const speaker =
     pickString(entry, ["speaker", "speaker_id", "speaker_label"]) ?? "Спикер";
 
+  let startSeconds: number | null = null;
   let timestamp = pickString(entry, ["timestamp", "time"]);
-  if (!timestamp) {
-    const start = entry["start"];
-    if (typeof start === "number") {
-      timestamp = secondsToTimestamp(start);
-    } else if (typeof start === "string") {
-      timestamp = start;
-    }
+
+  const start = entry["start"];
+  if (typeof start === "number" && Number.isFinite(start)) {
+    startSeconds = start;
+    if (!timestamp) timestamp = secondsToTimestamp(start);
+  } else if (typeof start === "string") {
+    startSeconds = timestampToSeconds(start);
+    if (!timestamp) timestamp = start;
+  }
+
+  // Если числового start не было, но есть строковый timestamp — пытаемся
+  // вытащить секунды из него, чтобы работал переход по клику.
+  if (startSeconds === null && timestamp) {
+    startSeconds = timestampToSeconds(timestamp);
   }
 
   return {
     speaker,
     timestamp: timestamp ?? "",
     text: text.trim(),
+    startSeconds,
   };
 }
 
