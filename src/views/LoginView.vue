@@ -8,6 +8,8 @@ import Checkbox from "../components/ui/Checkbox.vue";
 
 import { CircleX } from "@lucide/vue";
 
+import authImage from "../assets/images/auth.webp";
+
 const authStore = useAuthStore();
 
 const form = reactive({
@@ -64,9 +66,12 @@ const handleLogin = async () => {
     </div>
 
     <div class="hidden p-4 lg:block lg:w-[50%]">
-      <div class="relative h-[calc(100vh-2rem)] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-dark-card">
-        <img src="../assets/images/auth.jpg" alt="Конференцсвязь" class="h-full w-full object-cover" />
-      </div>
+      <div
+        class="h-[calc(100vh-2rem)] w-full overflow-hidden rounded-2xl bg-[length:110%] bg-center bg-no-repeat"
+        :style="{ backgroundImage: `url(${authImage})` }"
+        role="img"
+        aria-label="Конференцсвязь"
+      ></div>
     </div>
   </main>
 </template>

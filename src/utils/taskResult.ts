@@ -53,9 +53,18 @@ function extractSummaryUrl(raw: unknown): string | null {
   return value && isLikelyUrl(value) ? value.trim() : null;
 }
 
-/** Presigned-ссылка на JSON со стенограммой/диаризацией, если она есть. */
+/** Presigned-ссылка на JSON со стенограммой, если она есть. */
 function extractTranscriptUrl(raw: unknown): string | null {
-  const value = pickString(raw, ["transcript", "diarize", "diarization", "transcript_url"]);
+  // Бекенд кладёт ссылку на transcript.srt (внутри JSON [{start,end,speaker,text}])
+  // под ключом `transcribe`. Остальные ключи оставлены для совместимости со
+  // старым форматом/моками.
+  const value = pickString(raw, [
+    "transcribe",
+    "transcript",
+    "diarize",
+    "diarization",
+    "transcript_url",
+  ]);
   return value && isLikelyUrl(value) ? value.trim() : null;
 }
 
