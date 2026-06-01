@@ -154,6 +154,10 @@ const bufferedSeconds = ref(0);
 // true, пока браузер ждёт данные (буфер опустел) — показываем спиннер.
 const isBuffering = ref(false);
 let didRetryAfterExpire = false;
+// Воспроизведение было приостановлено принудительно из-за нехватки данных.
+// Если флаг взведён — продолжим автоматически, как только буфер наполнится.
+// Ручная пауза пользователя этот флаг сбрасывает, чтобы её не перебить.
+let shouldResumeAfterStall = false;
 // Браузер для потокового/VBR-аудио часто отдаёт duration === Infinity, пока
 // файл не просканирован до конца. Этот флаг отмечает, что мы принудительно
 // перемотали в конец, чтобы вынудить <audio> вычислить настоящую длительность.
@@ -272,6 +276,9 @@ const togglePlayback = () => {
         err instanceof Error ? err.message : "Не удалось воспроизвести аудио";
     });
   } else {
+    // Ручная пауза — отменяем отложенное автопродолжение, чтобы не перебить
+    // намерение пользователя, если в этот момент шла буферизация.
+    shouldResumeAfterStall = false;
     el.pause();
   }
 };
@@ -467,11 +474,14 @@ const onAudioProgress = () => {
 
 // Браузеру не хватает данных для продолжения: аудио фактически не звучит.
 // Ставим воспроизведение на паузу, чтобы счётчик времени не «шёл», пока
-// звука нет. Пользователь продолжит вручную кнопкой Play, когда захочет.
+// звука нет, и запоминаем, что надо продолжить, когда буфер наполнится.
 const onAudioWaiting = () => {
   isBuffering.value = false;
   const el = audioEl.value;
-  if (el && !el.paused) el.pause();
+  if (el && !el.paused) {
+    shouldResumeAfterStall = true;
+    el.pause();
+  }
 };
 
 // Браузер не может получить данные (зависшая сеть) — тоже считаем, что аудио
@@ -479,7 +489,10 @@ const onAudioWaiting = () => {
 const onAudioStalled = () => {
   isBuffering.value = false;
   const el = audioEl.value;
-  if (el && !el.paused) el.pause();
+  if (el && !el.paused) {
+    shouldResumeAfterStall = true;
+    el.pause();
+  }
 };
 
 // Данных снова достаточно — прячем индикатор.
@@ -490,6 +503,16 @@ const onAudioPlaying = () => {
 const onAudioCanPlay = () => {
   isBuffering.value = false;
   updateBuffered();
+  // Буфер наполнился после вынужденной паузы — продолжаем с того же места.
+  if (shouldResumeAfterStall) {
+    shouldResumeAfterStall = false;
+    const el = audioEl.value;
+    if (el && el.paused) {
+      void el.play().catch(() => {
+        /* автозапуск может быть заблокирован — не критично */
+      });
+    }
+  }
 };
 
 const onAudioPlay = () => {
@@ -512,6 +535,7 @@ const onAudioError = async () => {
   if (el) el.pause();
   isPlaying.value = false;
   isBuffering.value = false;
+  shouldResumeAfterStall = false;
   // Возможен случай: presigned истёк за время простоя — пробуем один раз
   // перезапросить ссылку. Если и это не помогло, показываем сообщение.
   if (!task.value) return;

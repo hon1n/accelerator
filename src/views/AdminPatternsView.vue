@@ -702,7 +702,7 @@ useAutoRefresh(async () => {
                   :key="section.id"
                   padding="md"
                 >
-                  <div class="mb-3 flex flex-wrap items-center gap-3">
+                  <div class="mb-3 flex items-center gap-2 sm:gap-3">
                     <div
                       class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-600 dark:bg-dark-elevated dark:text-gray-300"
                     >
@@ -713,7 +713,7 @@ useAutoRefresh(async () => {
                       placeholder="Название секции"
                       class="min-w-0 flex-1 p-1.5"
                     />
-                    <div class="ml-auto flex items-center gap-1">
+                    <div class="flex flex-shrink-0 items-center gap-1">
                       <button
                         :disabled="index === form.sections.length - 1"
                         class="cursor-pointer rounded border border-gray-300 p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-dark-border dark:hover:bg-dark-elevated"
